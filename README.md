@@ -21,7 +21,7 @@ Reine statische Webseite (HTML, CSS, JavaScript) – läuft kostenlos auf GitHub
 2. Bei **Build and deployment** → **Source**: „Deploy from a branch“.
 3. **Branch**: `main` und Ordner `/ (root)` wählen → **Save**.
 4. Nach ca. 1–2 Minuten ist die Seite erreichbar unter
-   **https://dibs999.github.io/wordle/**
+   **https://dibs999.github.io/games/**
 
 Jeder weitere Push auf `main` aktualisiert die Seite automatisch.
 
