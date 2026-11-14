@@ -3,6 +3,7 @@
 
 import { $, el, fillAvatar, openDialog, createToaster, bindDialogs } from './shared/ui.js';
 import { berlinDayKey } from './shared/day.js';
+import { currentDayStreak, solvedToday } from './shared/streak.js';
 import { emptyProfileData } from './shared/profile.js';
 import { lastProfileId, loadProfile, rememberProfile } from './shared/session.js';
 import {
@@ -15,10 +16,12 @@ import {
   listLocalOnlyProfiles,
   importLocalProfile,
 } from './shared/store.js';
-import { achievements as wordleAchievements, currentDailyStreak } from './wordle/game.js';
+import { achievements as wordleAchievements } from './wordle/game.js';
 import { sudokuAchievements, formatTime, gameProgress } from './sudoku/data.js';
 import { dailyDifficulty, DIFFICULTIES } from './sudoku/logic.js';
 import { crosswordAchievements, gameProgress as crosswordProgress } from './crossword/data.js';
+import { numbersAchievements, gameProgress as numbersProgress } from './numbers/data.js';
+import { dailyDifficulty as numbersDifficulty, DIFFICULTIES as NUMBERS_LEVELS } from './numbers/logic.js';
 import { dailyDifficulty as crosswordDifficulty, DIFFICULTIES as CROSSWORD_LEVELS } from './crossword/logic.js';
 
 const els = {
@@ -36,6 +39,9 @@ const els = {
   newProfileError: $('new-profile-error'),
   gamesScreen: $('games-screen'),
   gamesHello: $('games-hello'),
+  streakCard: $('streak-card'),
+  streakDays: $('streak-days'),
+  streakText: $('streak-text'),
   gameList: $('game-list'),
   switchProfile: $('switch-profile'),
 };
@@ -62,8 +68,6 @@ const GAMES = [
     icon: '<span class="lt s-correct" style="--r:-6deg" aria-hidden="true">W</span>',
     status(data) {
       const pills = [];
-      const streak = currentDailyStreak(data.stats.daily, state.today);
-      if (streak > 0) pills.push({ text: `🔥 ${streak}`, kind: 'streak' });
       const daily = data.daily;
       if (daily?.day === state.today && daily.status === 'won') {
         pills.push({ text: `Heute ✓ ${daily.guesses.length}/6`, kind: 'win' });
@@ -83,8 +87,6 @@ const GAMES = [
       '<svg class="game-icon-svg" viewBox="0 0 48 48" aria-hidden="true"><rect x="3" y="3" width="42" height="42" rx="9" class="gi-bg"/><path d="M17 8v32M31 8v32M8 17h32M8 31h32" class="gi-line"/><text x="24" y="29" text-anchor="middle" class="gi-num">9</text></svg>',
     status(data) {
       const pills = [];
-      const streak = currentDailyStreak(data.sudoku.stats.daily, state.today);
-      if (streak > 0) pills.push({ text: `🔥 ${streak}`, kind: 'streak' });
       const daily = data.sudoku.daily;
       if (daily?.day === state.today && daily.status === 'won') {
         pills.push({ text: `Heute ✓ ${formatTime(daily.time)}`, kind: 'win' });
@@ -104,8 +106,6 @@ const GAMES = [
       '<svg class="game-icon-svg" viewBox="0 0 48 48" aria-hidden="true"><rect x="3" y="3" width="42" height="42" rx="9" class="gi-bg gi-yellow"/><g class="gi-cells"><rect x="7" y="7" width="8" height="8" rx="1.5"/><rect x="16" y="7" width="8" height="8" rx="1.5"/><rect x="25" y="7" width="8" height="8" rx="1.5"/><rect x="34" y="7" width="8" height="8" rx="1.5"/><rect x="16" y="16" width="8" height="8" rx="1.5"/><rect x="16" y="25" width="8" height="8" rx="1.5"/><rect x="7" y="25" width="8" height="8" rx="1.5"/><rect x="25" y="25" width="8" height="8" rx="1.5"/><rect x="34" y="25" width="8" height="8" rx="1.5"/><rect x="16" y="34" width="8" height="8" rx="1.5"/><rect x="34" y="16" width="8" height="8" rx="1.5"/></g></svg>',
     status(data) {
       const pills = [];
-      const streak = currentDailyStreak(data.crossword.stats.daily, state.today);
-      if (streak > 0) pills.push({ text: `🔥 ${streak}`, kind: 'streak' });
       const daily = data.crossword.daily;
       if (daily?.day === state.today && daily.status === 'won') {
         pills.push({ text: `Heute ✓ ${formatTime(daily.time)}`, kind: 'win' });
@@ -119,10 +119,27 @@ const GAMES = [
     },
     doneToday: (data) => data.crossword.daily?.day === state.today && data.crossword.daily.status === 'won',
   },
+  {
+    id: 'numbers',
+    href: 'numbers/',
+    name: 'Zahlenjagd',
+    text: 'Mit Rechnen zur Zielzahl',
+    icon: '<span class="game-icon-tile gi-accent" aria-hidden="true">×</span>',
+    status: (data) => puzzleStatus(data, 'numbers', numbersProgress, numbersDifficulty, NUMBERS_LEVELS),
+    doneToday: (data) => data.numbers.daily?.day === state.today && data.numbers.daily.status === 'won',
+  },
 ];
 
+// Stand eines Rätselspiels mit Tagesrätsel (Abschnitt im Profil): gelöst mit Zeit, läuft oder offen mit Stufe.
+function puzzleStatus(data, section, progress, levelOf, levels) {
+  const daily = data[section].daily;
+  if (daily?.day === state.today && daily.status === 'won') return [{ text: `Heute ✓ ${formatTime(daily.time)}`, kind: 'win' }];
+  if (daily?.day === state.today && progress(daily) >= 1000) return [{ text: 'Heute läuft', kind: 'open' }];
+  return [{ text: `Heute offen · ${levels[levelOf(state.today)].label.toLowerCase()}`, kind: 'open' }];
+}
+
 function earnedBadges(data) {
-  return [...wordleAchievements(data), ...sudokuAchievements(data), ...crosswordAchievements(data)].filter((a) => a.earned).length;
+  return [...wordleAchievements(data), ...sudokuAchievements(data), ...crosswordAchievements(data), ...numbersAchievements(data)].filter((a) => a.earned).length;
 }
 
 // ---------- Profile ----------
@@ -143,12 +160,11 @@ function profilePills(data) {
   const pills = [];
   const badges = earnedBadges(data);
   if (badges > 0) pills.push({ text: `🏅 ${badges}`, kind: 'badge' });
-  const done = GAMES.filter((game) => game.doneToday(data)).length;
-  pills.push(
-    done === GAMES.length
-      ? { text: `Heute ✓ ${done}/${GAMES.length}`, kind: 'win' }
-      : { text: `Heute ${done}/${GAMES.length}`, kind: 'open' },
-  );
+  // Gemeinsame Tages-Serie: grün, wenn heute schon ein Tagesrätsel gelöst wurde.
+  const streak = currentDayStreak(data.dayStreak, state.today);
+  if (solvedToday(data.dayStreak, state.today)) pills.push({ text: `🔥 ${streak} ✓`, kind: 'win' });
+  else if (streak > 0) pills.push({ text: `🔥 ${streak}`, kind: 'streak' });
+  else pills.push({ text: 'Heute offen', kind: 'open' });
   return pills;
 }
 
@@ -258,6 +274,20 @@ function showProfileScreen() {
 
 // ---------- Spielauswahl ----------
 
+// Die gemeinsame Serie: Es zählt, dass an einem Tag irgendein Tagesrätsel gelöst wurde.
+function renderStreak(data) {
+  const streak = currentDayStreak(data.dayStreak, state.today);
+  const solved = solvedToday(data.dayStreak, state.today);
+  const done = GAMES.filter((game) => game.doneToday(data)).length;
+  els.streakCard.classList.toggle('is-solved', solved);
+  els.streakCard.classList.toggle('is-cold', streak === 0);
+  els.streakDays.textContent = streak === 1 ? '1 Tag in Folge' : `${streak} Tage in Folge`;
+  const record = data.dayStreak.max > streak ? ` · Rekord ${data.dayStreak.max}` : '';
+  if (solved) els.streakText.textContent = `Heute geschafft ✓ · ${done} von ${GAMES.length} Tagesrätseln gelöst${record}`;
+  else if (streak > 0) els.streakText.textContent = `Löse heute ein Tagesrätsel, um die Serie zu halten${record}`;
+  else els.streakText.textContent = `Löse ein Tagesrätsel, um eine Serie zu starten${record}`;
+}
+
 function renderGames() {
   const { profile } = state;
   fillAvatar(els.switchProfile.querySelector('.avatar'), profile.name);
@@ -265,6 +295,7 @@ function renderGames() {
   els.switchProfile.setAttribute('aria-label', `${profile.name} – Profil wechseln`);
   const badges = earnedBadges(profile.data);
   els.gamesHello.textContent = badges > 0 ? `Hallo ${profile.name}! 🏅 ${badges} Abzeichen` : `Hallo ${profile.name}!`;
+  renderStreak(profile.data);
 
   els.gameList.replaceChildren(
     ...GAMES.map((game) => {

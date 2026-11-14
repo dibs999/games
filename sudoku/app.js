@@ -35,6 +35,7 @@ import {
 import { berlinDayKey, puzzleNumber, secondsUntilBerlinMidnight } from '../shared/day.js';
 import { burstConfetti } from '../shared/fx.js';
 import { mergeProfileData, reuseUnchangedGames } from '../shared/profile.js';
+import { recordDailyWin } from '../shared/streak.js';
 import {
   isCloud,
   listProfiles,
@@ -574,6 +575,7 @@ async function onWin(game) {
   tickClock();
   const data = sudoku();
   const { isBest } = recordSudokuWin(data, game);
+  if (game.day) state.profile.data.dayStreak = recordDailyWin(state.profile.data.dayStreak, game.day);
   const unlocked = unlockSudokuAchievements(state.profile.data);
   for (const badge of unlocked) state.unseenBadges.add(badge.id);
   persist();

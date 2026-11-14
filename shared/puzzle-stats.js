@@ -224,3 +224,68 @@ export function reuseUnchanged(live, next) {
   }
   return result;
 }
+
+// ---------- Profilabschnitt eines Rätselspiels ----------
+
+// Baut Leeren, Normalisieren und Zusammenführen für den Abschnitt eines Rätselspiels (data.<key>).
+//   normalizeGame(game, daily): geprüftes Spiel oder null (daily: es ist das Tagesrätsel)
+//   progress(game): Fortschritt (siehe pickGame)
+//   extra(): zusätzliche Felder des leeren Abschnitts, z. B. { settings: { … } }
+// Der Abschnitt hat immer: daily, games (je Stufe ein Spiel), stats, flawless, settings.
+export function createSection({ normalizeGame, progress, extra = () => ({}) }) {
+  const empty = () => ({
+    daily: null,
+    games: {},
+    stats: emptyStatsSet(),
+    flawless: 0,
+    settings: {},
+    ...extra(),
+  });
+
+  const normalize = (data) => {
+    const base = empty();
+    if (!data || typeof data !== 'object') return base;
+    const games = {};
+    for (const key of LEVELS) {
+      const game = normalizeGame(data.games?.[key], false);
+      if (game && game.difficulty === key) games[key] = game;
+    }
+    return {
+      ...base,
+      ...data,
+      daily: normalizeGame(data.daily, true),
+      games,
+      stats: normalizeStatsSet(data.stats),
+      flawless: Number(data.flawless) > 0 ? Math.round(Number(data.flawless)) : 0,
+      settings: { ...base.settings, ...(data.settings && typeof data.settings === 'object' ? data.settings : {}) },
+    };
+  };
+
+  const merge = (remoteData, localData) => {
+    const remote = normalize(remoteData);
+    const local = normalize(localData);
+    const games = {};
+    for (const key of LEVELS) {
+      const game = pickGame(remote.games[key], local.games[key], progress);
+      if (game) games[key] = game;
+    }
+    return {
+      ...remote,
+      ...local,
+      daily: pickDaily(remote.daily, local.daily, progress),
+      games,
+      stats: mergeStatsSet(remote.stats, local.stats),
+      flawless: Math.max(remote.flawless, local.flawless),
+      settings: local.settings,
+    };
+  };
+
+  return { empty, normalize, merge, reuse: reuseUnchanged };
+}
+
+// Trägt einen Sieg in den Abschnitt ein (Statistik, bei mittleren und schweren Rätseln ohne Fehler auch flawless).
+export function recordSectionWin(section, game) {
+  const result = recordWin(section.stats, game);
+  if (game.mistakes === 0 && game.difficulty !== 'easy') section.flawless += 1;
+  return result;
+}

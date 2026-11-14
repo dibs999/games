@@ -61,6 +61,7 @@ import {
   playTimeUp,
 } from '../shared/sound.js';
 import { mergeProfileData, reuseUnchangedGames } from '../shared/profile.js';
+import { recordDailyWin } from '../shared/streak.js';
 import { $, el, fillAvatar, openDialog, createToaster, clearToasts, bindDialogs } from '../shared/ui.js';
 import { initSettings, readSetting, writeSetting } from '../shared/settings.js';
 import { loadProfile, lastProfileId } from '../shared/session.js';
@@ -684,6 +685,7 @@ async function submitGuess() {
     const stats = state.profile.data.stats;
     if (state.mode === 'daily') {
       stats.daily = recordDailyResult(stats.daily, game.day, won, game.guesses.length);
+      if (won) state.profile.data.dayStreak = recordDailyWin(state.profile.data.dayStreak, game.day);
     } else if (state.mode === 'endless') {
       stats.endless = recordEndlessResult(stats.endless, won, game.guesses.length);
     } else {

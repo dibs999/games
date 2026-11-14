@@ -1,0 +1,183 @@
+/* Zahlenjagd: Zielzahl, Zahlenkacheln, Rechenarten. Farben und Grundformen kommen aus ../shared/style.css. */
+
+.nz-board {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: min(100%, 440px);
+  max-height: 100%;
+}
+
+.nz-target {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 160px;
+  padding: 8px 28px 10px;
+  border-radius: 26px;
+  background: var(--accent);
+  box-shadow: 0 5px 0 var(--accent-edge);
+  color: var(--on-accent);
+}
+
+.nz-target small {
+  font-weight: 900;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.nz-target strong {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(44px, 12cqh, 64px);
+  line-height: 1;
+}
+
+.nz-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.nz-tile {
+  min-width: 68px;
+  height: 58px;
+  padding: 0 12px;
+  border-radius: 18px;
+  background: var(--surface);
+  border: 2px solid var(--line);
+  box-shadow: 0 4px 0 var(--surface-edge);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 28px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.nz-tile.is-result {
+  background: var(--grape-soft);
+  border-color: var(--grape);
+}
+
+.nz-tile.is-selected {
+  background: var(--accent);
+  border-color: var(--accent-edge);
+  box-shadow: 0 4px 0 var(--accent-edge);
+  color: var(--on-accent);
+  transform: translateY(-2px);
+}
+
+.nz-tile.is-target {
+  background: var(--correct);
+  border-color: var(--correct-edge);
+  box-shadow: 0 4px 0 var(--correct-edge);
+  color: var(--on-correct);
+}
+
+.nz-tile:disabled:not(.is-target) {
+  opacity: 0.5;
+  box-shadow: none;
+}
+
+.nz-log {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  max-height: 22cqh;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  color: var(--muted);
+  font-family: var(--font);
+  font-weight: 800;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.nz-log .is-heading {
+  margin-top: 6px;
+  color: var(--text);
+}
+
+.nz-log .is-solution {
+  color: var(--correct);
+}
+
+.nz-ops {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 6px 12px 0;
+}
+
+.nz-op {
+  height: 54px;
+  border-radius: 18px;
+  background: var(--surface);
+  border: 2px solid var(--line);
+  box-shadow: 0 4px 0 var(--surface-edge);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 30px;
+  line-height: 1;
+}
+
+.nz-op[aria-pressed="true"] {
+  background: var(--grape);
+  border-color: var(--grape);
+  box-shadow: 0 4px 0 var(--grape-edge);
+  color: #fff;
+  transform: translateY(-2px);
+}
+
+.nz-op:disabled {
+  opacity: 0.45;
+  box-shadow: none;
+}
+
+.nz-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px 12px max(12px, env(safe-area-inset-bottom));
+}
+
+.nz-actions .button {
+  min-height: 46px;
+  padding: 0 6px;
+  font-size: 15px;
+}
+
+.nz-actions .button.is-armed {
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: 0 4px 0 var(--accent-edge);
+}
+
+@media (max-height: 700px) {
+  .nz-board { gap: 10px; }
+  .nz-tile { height: 52px; font-size: 25px; }
+  .nz-op { height: 46px; font-size: 26px; }
+  .nz-actions .button { min-height: 42px; }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .nz-board { gap: 8px; }
+  .nz-target { min-width: 120px; padding: 4px 20px 6px; }
+  .nz-target strong { font-size: 40px; }
+  .nz-tile { min-width: 56px; height: 44px; font-size: 22px; }
+  .nz-op { height: 40px; font-size: 22px; }
+  .nz-ops { padding-inline: 0; }
+  .nz-actions { padding: 8px 0 8px; }
+  .nz-actions .button { min-height: 38px; font-size: 13px; }
+  .nz-log { max-height: 26cqh; font-size: 13px; }
+}

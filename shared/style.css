@@ -644,6 +644,57 @@ button {
   margin-bottom: 10px;
 }
 
+/* Gemeinsame Tages-Serie über alle Spiele */
+.streak-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  margin-top: 18px;
+  padding: 12px 16px;
+  border-radius: 22px;
+  background: var(--streak-bg);
+  border: 2px solid color-mix(in srgb, var(--streak-text) 35%, transparent);
+  color: var(--streak-text);
+}
+
+.streak-card.is-solved {
+  background: var(--win-bg);
+  border-color: color-mix(in srgb, var(--win-text) 35%, transparent);
+  color: var(--win-text);
+}
+
+.streak-card.is-cold .streak-flame {
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+
+.streak-flame {
+  flex: none;
+  font-size: 34px;
+  line-height: 1;
+}
+
+.streak-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.streak-days {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 21px;
+  line-height: 1.1;
+}
+
+.streak-text {
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1.3;
+}
+
 .game-list {
   display: grid;
   gap: 16px;
@@ -714,6 +765,26 @@ button {
 .gi-cells rect {
   fill: #fffdf8;
 }
+
+/* Symbol aus einem Zeichen auf farbiger Kachel (Spiele ohne eigene Zeichnung) */
+.game-icon-tile {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 36px;
+  line-height: 1;
+  padding-bottom: 4px;
+}
+
+.gi-accent { background: var(--accent); box-shadow: 0 4px 0 var(--accent-edge); }
+.gi-green { background: var(--correct); box-shadow: 0 4px 0 var(--correct-edge); }
+.gi-grape { background: var(--grape); box-shadow: 0 4px 0 var(--grape-edge); }
+.gi-gold { background: var(--present); box-shadow: 0 4px 0 var(--present-edge); color: var(--on-present); }
 
 .gi-num {
   fill: #fff;

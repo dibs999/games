@@ -126,3 +126,71 @@
   grid-template-columns: repeat(3, 1fr);
 }
 
+
+/* ---------- Seiten, die das Gerüst puzzle-shell.js bauen: Spielfeld in der Mitte, Bedienung darunter ---------- */
+
+.puzzle-main {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 6px 10px;
+  container-type: size;
+}
+
+.puzzle-below {
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.puzzle-creating {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 20px;
+}
+
+@media (max-height: 700px) {
+  .puzzle-shell .puzzle-info { margin-top: 4px; }
+  .puzzle-main { padding: 4px 10px; }
+}
+
+@media (orientation: portrait) and (max-height: 620px) {
+  .puzzle-shell .game-header { height: 48px; }
+  .puzzle-shell .mode-tabs { margin-top: 2px; padding: 3px; }
+  .puzzle-shell .mode-tab { min-height: 32px; font-size: 14.5px; }
+  .puzzle-shell .puzzle-info { margin-top: 2px; }
+  .puzzle-shell .puzzle-clock strong,
+  .puzzle-shell .puzzle-mistakes strong { font-size: 17px; }
+}
+
+/* Handy quer: Spielfeld links, Bedienung rechts. */
+@media (orientation: landscape) and (max-height: 520px) {
+  #game-screen.puzzle-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto auto auto minmax(0, 1fr);
+    grid-template-areas:
+      "header header"
+      "main tabs"
+      "main info"
+      "main below";
+    align-content: start;
+    max-width: 960px;
+  }
+
+  .puzzle-shell .game-header { grid-area: header; height: 50px; }
+  .puzzle-shell .mode-tabs { grid-area: tabs; margin-top: 2px; }
+  .puzzle-shell .mode-tab { min-width: 0; min-height: 32px; padding-inline: 4px; overflow: hidden; font-size: 13px; text-overflow: ellipsis; }
+  .puzzle-shell .puzzle-info { grid-area: info; margin: 6px 0 0; padding: 0 12px; max-width: none; }
+  .puzzle-shell .puzzle-main { grid-area: main; padding: 4px 8px 8px 12px; }
+  .puzzle-shell .puzzle-below { grid-area: below; align-self: start; max-width: none; }
+}
