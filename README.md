@@ -28,14 +28,8 @@ Spielstände und Statistiken liegen im Profil und sind auf allen Geräten gleich
 - **Zahlenjagd** – Aus sechs Zahlen mit + − × ÷ die Zielzahl erreichen (leicht 4, mittel 5, schwer 6 Zahlen).
   - Jede Aufgabe ist lösbar (der Browser prüft das beim Erzeugen), Zurück, Neustart, „Lösung zeigen“ am Ende.
   - Abzeichen für Treffer, knappe Rechenwege und Tempo; Rangliste nach Zeit.
-- **Minensucher** – Leicht (8×8), Mittel (12×12) und Schwer (16×16), dazu ein Tagesrätsel.
-  - Der erste Zug ist immer sicher, und jedes Feld lässt sich ohne Raten herleiten: Das Spiel prüft beim Erzeugen mit einem Löser, dass es keinen Münzwurf braucht.
-  - Aufdecken oder Flaggen per Umschalter oder langem Druck (Handy) bzw. Rechtsklick (Rechner), Tippen auf eine aufgedeckte Zahl deckt die Nachbarn auf, wenn genauso viele Flaggen daneben stehen.
-- **Nonogramm** – Leicht (5×5), Mittel (10×10) und Schwer (14×14), dazu ein Tagesrätsel.
-  - Zahlen am Rand verraten die Blöcke, Füllen oder Markieren per Tippen oder Wischen, erledigte Zahlen werden grau.
-  - Jedes Rätsel hat genau eine Lösung und lässt sich Reihe für Reihe lösen, ohne zu raten. Die Muster sind zufällig und spiegelsymmetrisch, keine Bilder mit Motiv.
 
-**Tages-Serie:** Bei den Rätselspielen (Sudoku, Kreuzworträtsel, Zahlenjagd, Minensucher, Nonogramm) hat jedes Spiel sein
+**Tages-Serie:** Bei den Rätselspielen (Sudoku, Kreuzworträtsel, Zahlenjagd) hat jedes Spiel sein
 Tagesrätsel, aber es gibt nur **eine gemeinsame Serie**: Ein Tag zählt, sobald man irgendein Tagesrätsel (oder das
 Wordle-Tageswort) gelöst hat. Auf der Spieleseite steht die Serie oben, so muss man nicht in jedem Spiel jeden Tag
 spielen, um sie zu halten.
@@ -67,8 +61,6 @@ wordle/                das Spiel Wordle (index.html, app.js, game.js, words.js)
 sudoku/                das Spiel Sudoku (index.html, app.js, logic.js, data.js, sudoku.css)
 crossword/             das Kreuzworträtsel (index.html, app.js, logic.js, data.js, words.js, crossword.css)
 numbers/               die Zahlenjagd (index.html, app.js, logic.js, data.js, numbers.css)
-minesweeper/           der Minensucher (index.html, app.js, logic.js, data.js, minesweeper.css)
-nonogram/              das Nonogramm (index.html, app.js, logic.js, data.js, nonogram.css)
 supabase/schema.sql    Tabelle und Zugriffsregeln für Supabase
 tests/                 Tests der Spiellogik und des Speicherns (npm test)
 tools/serve.mjs        kleiner Webserver zum lokalen Testen
@@ -81,7 +73,7 @@ Node getestet.
 
 Alles liegt in einer Tabelle `profiles` (Name und ein JSON-Feld `data`). Im JSON hat jedes Spiel seinen Abschnitt:
 Wordle auf oberster Ebene (`daily`, `endless`, `extreme`, `stats`, `blitzStats` …), Sudoku unter `sudoku`, das
-Kreuzworträtsel unter `crossword`, die anderen unter `numbers`, `minesweeper` und `nonogram`. Die gemeinsame Serie steht
+Kreuzworträtsel unter `crossword`, die Zahlenjagd unter `numbers`. Die gemeinsame Serie steht
 unter `dayStreak`.
 Abzeichen aller Spiele stehen gemeinsam unter `achievements` (Kennung → Datum).
 
@@ -92,7 +84,7 @@ Statistiken zählen nur hoch, Abzeichen werden vereinigt). Unbekannte Schlüssel
 ### Ein neues Spiel hinzufügen
 
 Für ein Rätselspiel mit Stufen und Tagesrätsel (der übliche Fall) braucht es nur das Spiel selbst, alles Übrige liefert
-`shared/puzzle-shell.js`. Vorlagen sind `numbers/`, `minesweeper/` und `nonogram/`:
+`shared/puzzle-shell.js`. Vorlage ist `numbers/`:
 
 1. `<spiel>/logic.js`: Regeln, Erzeugen von Rätseln je Stufe und das Tagesrätsel aus dem Datum (mit `shared/random.js`, damit es für
    alle gleich ist).
