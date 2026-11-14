@@ -1,4 +1,4 @@
-// Gemeinsames Gerüst für Rätselspiele mit Stufen und Tagesrätsel (Zahlenjagd, Minensucher, Nonogramm, …).
+// Gemeinsames Gerüst für Rätselspiele mit Stufen und Tagesrätsel (Zahlenjagd, …).
 //
 // Das Gerüst baut die Seite (Kopf, Reiter, Infozeile, Dialoge) und erledigt alles Gemeinsame: Profil laden,
 // Tagesrätsel und Stufen, Uhr, Speichern, Sieg und Abzeichen, Statistik, Rangliste, Teilen, Mitternacht,
@@ -10,8 +10,8 @@
 //   shell.start();                             // lädt das Profil und beginnt
 //
 // config:
-//   section        Schlüssel im Profil (data.<section>), z. B. 'minesweeper'
-//   name           Anzeigename, z. B. 'Minensucher'
+//   section        Schlüssel im Profil (data.<section>), z. B. 'numbers'
+//   name           Anzeigename, z. B. 'Zahlenjagd'
 //   logo           { tile: 's-sky', letter: 'M', rest: 'inen' }  Logo im Kopf
 //   description    Beschreibung für die Seite
 //   helpHtml       Inhalt des Dialogs „So wird gespielt“ (feste Zeichenkette)

@@ -20,10 +20,6 @@ import { achievements as wordleAchievements } from './wordle/game.js';
 import { sudokuAchievements, formatTime, gameProgress } from './sudoku/data.js';
 import { dailyDifficulty, DIFFICULTIES } from './sudoku/logic.js';
 import { crosswordAchievements, gameProgress as crosswordProgress } from './crossword/data.js';
-import { nonogramAchievements, gameProgress as nonogramProgress } from './nonogram/data.js';
-import { dailyDifficulty as nonogramDifficulty, DIFFICULTIES as NONOGRAM_LEVELS } from './nonogram/logic.js';
-import { minesweeperAchievements, gameProgress as minesweeperProgress } from './minesweeper/data.js';
-import { dailyDifficulty as minesweeperDifficulty, DIFFICULTIES as MINESWEEPER_LEVELS } from './minesweeper/logic.js';
 import { numbersAchievements, gameProgress as numbersProgress } from './numbers/data.js';
 import { dailyDifficulty as numbersDifficulty, DIFFICULTIES as NUMBERS_LEVELS } from './numbers/logic.js';
 import { dailyDifficulty as crosswordDifficulty, DIFFICULTIES as CROSSWORD_LEVELS } from './crossword/logic.js';
@@ -132,24 +128,6 @@ const GAMES = [
     status: (data) => puzzleStatus(data, 'numbers', numbersProgress, numbersDifficulty, NUMBERS_LEVELS),
     doneToday: (data) => data.numbers.daily?.day === state.today && data.numbers.daily.status === 'won',
   },
-  {
-    id: 'minesweeper',
-    href: 'minesweeper/',
-    name: 'Minensucher',
-    text: 'Minenfelder ohne Raten räumen',
-    icon: '<span class="game-icon-tile gi-grape" aria-hidden="true">💣</span>',
-    status: (data) => puzzleStatus(data, 'minesweeper', minesweeperProgress, minesweeperDifficulty, MINESWEEPER_LEVELS),
-    doneToday: (data) => data.minesweeper.daily?.day === state.today && data.minesweeper.daily.status === 'won',
-  },
-  {
-    id: 'nonogram',
-    href: 'nonogram/',
-    name: 'Nonogramm',
-    text: 'Bilder aus Zahlen aufdecken',
-    icon: '<span class="game-icon-tile gi-green" aria-hidden="true">▦</span>',
-    status: (data) => puzzleStatus(data, 'nonogram', nonogramProgress, nonogramDifficulty, NONOGRAM_LEVELS),
-    doneToday: (data) => data.nonogram.daily?.day === state.today && data.nonogram.daily.status === 'won',
-  },
 ];
 
 // Stand eines Rätselspiels mit Tagesrätsel (Abschnitt im Profil): gelöst mit Zeit, läuft oder offen mit Stufe.
@@ -161,7 +139,7 @@ function puzzleStatus(data, section, progress, levelOf, levels) {
 }
 
 function earnedBadges(data) {
-  return [...wordleAchievements(data), ...sudokuAchievements(data), ...crosswordAchievements(data), ...numbersAchievements(data), ...minesweeperAchievements(data), ...nonogramAchievements(data)].filter((a) => a.earned).length;
+  return [...wordleAchievements(data), ...sudokuAchievements(data), ...crosswordAchievements(data), ...numbersAchievements(data)].filter((a) => a.earned).length;
 }
 
 // ---------- Profile ----------
