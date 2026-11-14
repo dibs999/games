@@ -22,12 +22,14 @@ import {
   mergeMinesweeperData,
   reuseUnchangedMinesweeper,
 } from '../minesweeper/data.js';
+import { emptyNonogramData, normalizeNonogramData, mergeNonogramData, reuseUnchangedNonogram } from '../nonogram/data.js';
 import { mergeDayStreak, normalizeDayStreak, deriveDayStreak } from './streak.js';
 
 const SECTIONS = [
   { key: 'sudoku', empty: emptySudokuData, normalize: normalizeSudokuData, merge: mergeSudokuData, reuse: reuseUnchangedSudoku },
   { key: 'crossword', empty: emptyCrosswordData, normalize: normalizeCrosswordData, merge: mergeCrosswordData, reuse: reuseUnchangedCrossword },
   { key: 'minesweeper', empty: emptyMinesweeperData, normalize: normalizeMinesweeperData, merge: mergeMinesweeperData, reuse: reuseUnchangedMinesweeper },
+  { key: 'nonogram', empty: emptyNonogramData, normalize: normalizeNonogramData, merge: mergeNonogramData, reuse: reuseUnchangedNonogram },
   { key: 'numbers', empty: emptyNumbersData, normalize: normalizeNumbersData, merge: mergeNumbersData, reuse: reuseUnchangedNumbers },
 ];
 
