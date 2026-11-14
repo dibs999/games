@@ -1,0 +1,128 @@
+/* Gemeinsame Gestaltung der Rätselspiele (Sudoku, Kreuzworträtsel): Infozeile, Ergebnis, Bestzeiten. */
+
+/* ---------- Anzeige über dem Feld ---------- */
+
+.puzzle-info {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 440px;
+  margin: 8px auto 0;
+  padding: 0 18px;
+  color: var(--muted);
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.puzzle-clock {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: start;
+  color: var(--text);
+}
+
+.puzzle-clock .ico {
+  width: 18px;
+  height: 18px;
+  color: var(--muted);
+}
+
+.puzzle-clock strong,
+.puzzle-mistakes strong {
+  color: var(--text);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.puzzle-level {
+  padding: 3px 12px 2px;
+  border-radius: 999px;
+  background: var(--grape-soft);
+  color: var(--grape);
+  font-weight: 900;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.puzzle-mistakes {
+  justify-self: end;
+}
+
+.puzzle-mistakes.has-mistakes strong {
+  color: var(--sd-wrong);
+}
+
+/* ---------- Ergebnis und Statistik ---------- */
+
+.dialog .puzzle-result-icon {
+  margin: 4px 0 0;
+  font-size: 56px;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.dialog .puzzle-result-summary {
+  margin: 6px 0 0;
+  font-weight: 800;
+  text-align: center;
+}
+
+.level-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.level-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 2px 10px;
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: var(--surface-soft);
+  border: 2px solid var(--line);
+}
+
+.level-list strong {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 17px;
+}
+
+.level-list .level-time {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 20px;
+  text-align: right;
+}
+
+.level-list small {
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 12.5px;
+}
+
+.level-list .level-time-label {
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 12.5px;
+  text-align: right;
+}
+
+.ranking-levels {
+  margin-top: 8px;
+}
+
+.stats-numbers.is-three {
+  grid-template-columns: repeat(3, 1fr);
+}
+

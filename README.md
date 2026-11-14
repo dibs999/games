@@ -20,6 +20,11 @@ Spielstände und Statistiken liegen im Profil und sind auf allen Geräten gleich
   - Die Rätsel werden im Browser erzeugt und nach der Schwierigkeit bewertet, die man zum Lösen braucht
     (Einzelkandidaten, Paare, Drillinge, X-Wing, Annahme-Probe). Jedes Rätsel hat genau eine Lösung.
 
+- **Kreuzworträtsel** – Leicht, Mittel und Schwer, dazu ein Tagesrätsel (Wochenplan wie beim Sudoku).
+  - Das Gitter wird im Browser aus einer Liste von rund 350 Wörtern mit Hinweisen gebaut (`crossword/words.js`). Je schwerer die Stufe, desto größer das Gitter und desto kniffliger die Wörter.
+  - Hinweisleiste mit den Pfeilen für den nächsten und vorherigen Hinweis, Liste aller Hinweise, eigene Buchstaben-Tastatur mit Ä, Ö, Ü (ß wird als SS geschrieben).
+  - Uhr, Fehleranzeige, Speichern pro Profil (auch auf anderen Geräten fortsetzbar), Bestzeiten je Stufe.
+
 Für alle Spiele gemeinsam: **Abzeichen** in Bronze, Silber und Gold (mit Fortschritt und Datum), **Ranglisten** im
 Vergleich aller Profile, Töne und Konfetti (im Browser erzeugt, ohne Audio- oder Bilddateien), helles und
 dunkles Design, hoher Kontrast.
@@ -37,10 +42,13 @@ shared/                gemeinsamer Code aller Spiele
   day.js               Kalendertage und Mitternacht (deutsche Zeit) für die Tagesrätsel
   sound.js, fx.js      Töne und Konfetti
   ui.js, settings.js, badge-popup.js   Oberflächen-Bausteine
+  puzzle-stats.js, puzzle-ui.js, puzzle.css   Statistik, Ranglisten, Abzeichen-Ansicht für Rätselspiele
+  random.js            Zufall, der überall gleich ist (für die Tagesrätsel)
   style.css, theme.js  Gestaltung (inkl. dunklem Design und hohem Kontrast)
   config.js            Supabase-Zugangsdaten
 wordle/                das Spiel Wordle (index.html, app.js, game.js, words.js)
 sudoku/                das Spiel Sudoku (index.html, app.js, logic.js, data.js, sudoku.css)
+crossword/             das Kreuzworträtsel (index.html, app.js, logic.js, data.js, words.js, crossword.css)
 supabase/schema.sql    Tabelle und Zugriffsregeln für Supabase
 tests/                 Tests der Spiellogik und des Speicherns (npm test)
 tools/serve.mjs        kleiner Webserver zum lokalen Testen
@@ -52,7 +60,8 @@ Node getestet.
 ### Profildaten
 
 Alles liegt in einer Tabelle `profiles` (Name und ein JSON-Feld `data`). Im JSON hat jedes Spiel seinen Abschnitt:
-Wordle auf oberster Ebene (`daily`, `endless`, `extreme`, `stats`, `blitzStats` …), Sudoku unter `sudoku`.
+Wordle auf oberster Ebene (`daily`, `endless`, `extreme`, `stats`, `blitzStats` …), Sudoku unter `sudoku`, das
+Kreuzworträtsel unter `crossword`.
 Abzeichen aller Spiele stehen gemeinsam unter `achievements` (Kennung → Datum).
 
 Zwei Geräte können gleichzeitig spielen: Beim Speichern wird nur überschrieben, wenn der Server noch den Stand hat,
@@ -61,7 +70,8 @@ Statistiken zählen nur hoch, Abzeichen werden vereinigt). Unbekannte Schlüssel
 
 ### Ein neues Spiel hinzufügen
 
-1. Ordner `<spiel>/` mit `index.html` und `app.js` anlegen. Vorlage ist `sudoku/`: Profil laden mit `loadProfile`
+1. Ordner `<spiel>/` mit `index.html` und `app.js` anlegen. Vorlagen sind `sudoku/` und `crossword/` (beide mit Stufen,
+   Tagesrätsel, Statistik, Abzeichen und Rangliste; das Gemeinsame steckt in `shared/puzzle-*`): Profil laden mit `loadProfile`
    (aus `shared/session.js`), speichern mit `saveProfile`, Kopf mit Profil-Knopf und Logo-Link zur Startseite.
 2. Die Daten des Spiels bekommen einen Abschnitt im Profil. In `shared/profile.js` ergänzen: leere Daten,
    Normalisieren und Zusammenführen (Vorlage: `sudoku/data.js`).
@@ -141,6 +151,14 @@ Tests:
 ```bash
 npm test
 ```
+
+## Kreuzworträtsel: Wörter und Hinweise
+
+`crossword/words.js` enthält je Wort die Lösung (Großbuchstaben, ß als SS), den Hinweis und eine Stufe (1 alltäglich,
+2 etwas Wissen nötig, 3 anspruchsvoll). Gespeicherte Rätsel merken sich ein Wort über seine Position in der Liste:
+**Neue Wörter nur hinten anhängen und vorhandene nie umsortieren oder löschen.** Den Text eines Hinweises darf man
+jederzeit verbessern. Das Tagesrätsel hängt von der Liste ab; auch der Aufbau in `crossword/logic.js` darf sich nicht
+ändern (Test "Tagesrätsel bleibt stabil").
 
 ## Wortlisten (Wordle)
 

@@ -18,6 +18,8 @@ import {
 import { achievements as wordleAchievements, currentDailyStreak } from './wordle/game.js';
 import { sudokuAchievements, formatTime, gameProgress } from './sudoku/data.js';
 import { dailyDifficulty, DIFFICULTIES } from './sudoku/logic.js';
+import { crosswordAchievements, gameProgress as crosswordProgress } from './crossword/data.js';
+import { dailyDifficulty as crosswordDifficulty, DIFFICULTIES as CROSSWORD_LEVELS } from './crossword/logic.js';
 
 const els = {
   profileScreen: $('profile-screen'),
@@ -93,10 +95,34 @@ const GAMES = [
     },
     doneToday: (data) => data.sudoku.daily?.day === state.today && data.sudoku.daily.status === 'won',
   },
+  {
+    id: 'crossword',
+    href: 'crossword/',
+    name: 'Kreuzworträtsel',
+    text: 'Wörter erraten mit Hinweisen',
+    icon:
+      '<svg class="game-icon-svg" viewBox="0 0 48 48" aria-hidden="true"><rect x="3" y="3" width="42" height="42" rx="9" class="gi-bg gi-yellow"/><g class="gi-cells"><rect x="7" y="7" width="8" height="8" rx="1.5"/><rect x="16" y="7" width="8" height="8" rx="1.5"/><rect x="25" y="7" width="8" height="8" rx="1.5"/><rect x="34" y="7" width="8" height="8" rx="1.5"/><rect x="16" y="16" width="8" height="8" rx="1.5"/><rect x="16" y="25" width="8" height="8" rx="1.5"/><rect x="7" y="25" width="8" height="8" rx="1.5"/><rect x="25" y="25" width="8" height="8" rx="1.5"/><rect x="34" y="25" width="8" height="8" rx="1.5"/><rect x="16" y="34" width="8" height="8" rx="1.5"/><rect x="34" y="16" width="8" height="8" rx="1.5"/></g></svg>',
+    status(data) {
+      const pills = [];
+      const streak = currentDailyStreak(data.crossword.stats.daily, state.today);
+      if (streak > 0) pills.push({ text: `🔥 ${streak}`, kind: 'streak' });
+      const daily = data.crossword.daily;
+      if (daily?.day === state.today && daily.status === 'won') {
+        pills.push({ text: `Heute ✓ ${formatTime(daily.time)}`, kind: 'win' });
+      } else if (daily?.day === state.today && crosswordProgress(daily) >= 1000) {
+        pills.push({ text: 'Heute läuft', kind: 'open' });
+      } else {
+        const level = CROSSWORD_LEVELS[crosswordDifficulty(state.today)].label.toLowerCase();
+        pills.push({ text: `Heute offen · ${level}`, kind: 'open' });
+      }
+      return pills;
+    },
+    doneToday: (data) => data.crossword.daily?.day === state.today && data.crossword.daily.status === 'won',
+  },
 ];
 
 function earnedBadges(data) {
-  return [...wordleAchievements(data), ...sudokuAchievements(data)].filter((a) => a.earned).length;
+  return [...wordleAchievements(data), ...sudokuAchievements(data), ...crosswordAchievements(data)].filter((a) => a.earned).length;
 }
 
 // ---------- Profile ----------

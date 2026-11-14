@@ -12,6 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@600;700;800;900&display=swap">
   <link rel="stylesheet" href="../shared/style.css">
+  <link rel="stylesheet" href="../shared/puzzle.css">
   <link rel="stylesheet" href="sudoku.css">
   <script src="../shared/theme.js"></script>
   <script type="module" src="app.js"></script>
@@ -54,10 +55,10 @@
       <button class="mode-tab" type="button" data-mode="hard" aria-pressed="false">Schwer</button>
     </nav>
 
-    <div class="sudoku-info" aria-live="off">
-      <span class="sudoku-clock" aria-label="Zeit"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9.5 3h5"/></svg><strong id="sudoku-time">0:00</strong></span>
-      <span id="sudoku-level" class="sudoku-level"></span>
-      <span class="sudoku-mistakes">Fehler <strong id="sudoku-mistakes">0</strong></span>
+    <div class="puzzle-info" aria-live="off">
+      <span class="puzzle-clock" aria-label="Zeit"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9.5 3h5"/></svg><strong id="puzzle-time">0:00</strong></span>
+      <span id="puzzle-level" class="puzzle-level"></span>
+      <span class="puzzle-mistakes">Fehler <strong id="puzzle-mistakes">0</strong></span>
     </div>
 
     <main class="sudoku-main">
@@ -122,9 +123,9 @@
       <div class="grabber" aria-hidden="true"></div>
       <button class="dialog-close" type="button" data-close aria-label="Schließen"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
       <div id="result-section" class="result-section" hidden>
-        <p id="result-icon" class="sudoku-result-icon" aria-hidden="true">🎉</p>
+        <p id="result-icon" class="puzzle-result-icon" aria-hidden="true">🎉</p>
         <h2 id="result-title" class="result-title">Gelöst!</h2>
-        <p id="result-summary" class="sudoku-result-summary"></p>
+        <p id="result-summary" class="puzzle-result-summary"></p>
         <p id="result-best" class="blitz-best-note" hidden>Neue Bestzeit!</p>
         <div class="result-actions">
           <button id="share-button" class="button" type="button">

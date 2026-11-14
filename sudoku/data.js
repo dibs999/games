@@ -1,7 +1,28 @@
 // Sudoku-Daten im Profil: laufende Spiele, Statistik und Abzeichen, dazu das Zusammenführen zweier Stände.
 // Alles liegt im Profil unter dem Schlüssel "sudoku" (Abzeichen im gemeinsamen Feld "achievements").
 
-import { shiftDayKey } from '../shared/day.js';
+import {
+  emptyStats,
+  emptyDailyStats,
+  emptyStatsSet,
+  normalizeStatsSet,
+  mergeStatsSet,
+  recordWin,
+  currentDailyStreak,
+  totalSolved as totalSolvedStats,
+  averageMs,
+  formatTime,
+  rankOf,
+  dailyRanking as dailyRankingFor,
+  bestTimeRanking as bestTimeRankingFor,
+  streakRanking as streakRankingFor,
+  solvedRanking as solvedRankingFor,
+  achievementStatus,
+  unlockFrom,
+  pickGame as pickGameBy,
+  pickDaily as pickDailyBy,
+  reuseUnchanged,
+} from '../shared/puzzle-stats.js';
 import { CELLS, DIFFICULTIES, DIFFICULTY_KEYS, PEERS, fromText, hashString } from './logic.js';
 
 const BIT = (d) => 1 << (d - 1);
@@ -10,20 +31,11 @@ const SOLVED = /^[1-9]{81}$/;
 
 // ---------- Leere und geprüfte Daten ----------
 
-export function emptyStats() {
-  return { won: 0, bestMs: null, totalMs: 0 };
-}
-
-export function emptyDailyStats() {
-  return { ...emptyStats(), streak: 0, maxStreak: 0, lastWonDay: null };
-}
-
 export function emptySudokuData() {
   return {
     daily: null, // das Tagesrätsel von heute
     games: {}, // pro Stufe das angefangene Rätsel
-    // easy/medium/hard zählen alle gelösten Rätsel der Stufe (auch Tagesrätsel); daily nur die Tage.
-    stats: { daily: emptyDailyStats(), easy: emptyStats(), medium: emptyStats(), hard: emptyStats() },
+    stats: emptyStatsSet(),
     flawless: 0, // mittlere oder schwere Rätsel ohne einen Fehler
     settings: { showErrors: true },
   };
@@ -64,17 +76,6 @@ function normalizeGame(game, daily) {
   };
 }
 
-function normalizeStats(stats, daily = false) {
-  const base = daily ? emptyDailyStats() : emptyStats();
-  const next = { ...base, ...(stats && typeof stats === 'object' ? stats : {}) };
-  for (const key of ['won', 'totalMs', ...(daily ? ['streak', 'maxStreak'] : [])]) {
-    next[key] = Number(next[key]) > 0 ? Math.round(Number(next[key])) : 0;
-  }
-  next.bestMs = Number(next.bestMs) > 0 ? Math.round(Number(next.bestMs)) : null;
-  if (daily && typeof next.lastWonDay !== 'string') next.lastWonDay = null;
-  return next;
-}
-
 export function normalizeSudokuData(data) {
   const base = emptySudokuData();
   if (!data || typeof data !== 'object') return base;
@@ -88,12 +89,7 @@ export function normalizeSudokuData(data) {
     ...data,
     daily: normalizeGame(data.daily, true),
     games,
-    stats: {
-      daily: normalizeStats(data.stats?.daily, true),
-      easy: normalizeStats(data.stats?.easy),
-      medium: normalizeStats(data.stats?.medium),
-      hard: normalizeStats(data.stats?.hard),
-    },
+    stats: normalizeStatsSet(data.stats),
     flawless: Number(data.flawless) > 0 ? Math.round(Number(data.flawless)) : 0,
     settings: { ...base.settings, ...(data.settings && typeof data.settings === 'object' ? data.settings : {}) },
   };
@@ -110,68 +106,26 @@ export function gameProgress(game) {
   return filled * 1000 + Math.min(999, Math.floor(game.time / 1000));
 }
 
-function pickGame(remote, local) {
-  if (!remote || !local) return local || remote;
-  if (remote.id === local.id) return gameProgress(local) >= gameProgress(remote) ? local : remote;
-  // Verschiedene Rätsel: das, an dem schon gespielt wurde, geht vor.
-  const active = (game) => game.status === 'playing' && gameProgress(game) >= 1000;
-  return active(remote) && !active(local) ? remote : local;
-}
-
-function pickDaily(remote, local) {
-  if (!remote || !local) return local || remote;
-  if (remote.day !== local.day) return remote.day > local.day ? remote : local;
-  return gameProgress(local) >= gameProgress(remote) ? local : remote;
-}
-
-function minOrNull(a, b) {
-  if (a == null) return b;
-  if (b == null) return a;
-  return Math.min(a, b);
-}
-
-// Gelöste Rätsel zählen nur hoch: der Stand mit mehr Siegen enthält die neueren Ergebnisse.
-function pickStats(remote, local) {
-  const winner = local.won >= remote.won ? local : remote;
-  return {
-    ...winner,
-    bestMs: minOrNull(remote.bestMs, local.bestMs),
-    totalMs: Math.max(remote.totalMs, local.totalMs),
-  };
-}
-
 export function mergeSudokuData(remoteData, localData) {
   const remote = normalizeSudokuData(remoteData);
   const local = normalizeSudokuData(localData);
   const games = {};
   for (const key of DIFFICULTY_KEYS) {
-    const game = pickGame(remote.games[key], local.games[key]);
+    const game = pickGameBy(remote.games[key], local.games[key], gameProgress);
     if (game) games[key] = game;
   }
-  const stats = { daily: pickStats(remote.stats.daily, local.stats.daily) };
-  for (const key of DIFFICULTY_KEYS) stats[key] = pickStats(remote.stats[key], local.stats[key]);
   return {
     ...remote,
     ...local,
-    daily: pickDaily(remote.daily, local.daily),
+    daily: pickDailyBy(remote.daily, local.daily, gameProgress),
     games,
-    stats,
+    stats: mergeStatsSet(remote.stats, local.stats),
     flawless: Math.max(remote.flawless, local.flawless),
     settings: local.settings,
   };
 }
 
-// Übernimmt neue Daten, behält aber unveränderte Spiele als dieselben Objekte (laufendes Spiel nicht stören).
-export function reuseUnchangedSudoku(live, next) {
-  if (!live || !next) return next;
-  const same = (a, b) => a && b && JSON.stringify(a) === JSON.stringify(b);
-  const result = { ...next, games: { ...next.games } };
-  if (same(live.daily, next.daily)) result.daily = live.daily;
-  for (const key of Object.keys(result.games)) {
-    if (same(live.games?.[key], result.games[key])) result.games[key] = live.games[key];
-  }
-  return result;
-}
+export const reuseUnchangedSudoku = reuseUnchanged;
 
 // ---------- Spielzüge ----------
 
@@ -244,107 +198,22 @@ export function filledCount(game) {
 
 // Trägt einen gelösten Durchgang in die Statistik ein. Ergebnis: { isBest } (neue Bestzeit der Stufe).
 export function recordSudokuWin(sudoku, game) {
-  const { stats } = sudoku;
-  const level = stats[game.difficulty];
-  const isBest = level.bestMs == null || game.time < level.bestMs;
-  stats[game.difficulty] = {
-    won: level.won + 1,
-    bestMs: isBest ? game.time : level.bestMs,
-    totalMs: level.totalMs + game.time,
-  };
-  if (game.day) {
-    const daily = stats.daily;
-    const streak = daily.lastWonDay === shiftDayKey(game.day, -1) ? daily.streak + 1 : 1;
-    stats.daily = {
-      won: daily.won + 1,
-      bestMs: minOrNull(daily.bestMs, game.time),
-      totalMs: daily.totalMs + game.time,
-      streak,
-      maxStreak: Math.max(daily.maxStreak, streak),
-      lastWonDay: game.day,
-    };
-  }
+  const result = recordWin(sudoku.stats, game);
   if (game.mistakes === 0 && game.difficulty !== 'easy') sudoku.flawless += 1;
-  return { isBest };
+  return result;
 }
 
-// Aktuelle Serie im Tagesrätsel (gilt weiter, wenn gestern gelöst wurde und heute noch offen ist).
-export function currentDailyStreak(stats, today) {
-  if (!stats.lastWonDay) return 0;
-  return stats.lastWonDay === today || stats.lastWonDay === shiftDayKey(today, -1) ? stats.streak : 0;
-}
+export const totalSolved = (sudoku) => totalSolvedStats(sudoku.stats);
 
-export function totalSolved(sudoku) {
-  return DIFFICULTY_KEYS.reduce((sum, key) => sum + sudoku.stats[key].won, 0);
-}
-
-export function averageMs(stats) {
-  return stats.won ? Math.round(stats.totalMs / stats.won) : null;
-}
-
-export function formatTime(ms) {
-  if (ms == null) return '–';
-  const seconds = Math.round(ms / 1000);
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
-  const pad = (n) => String(n).padStart(2, '0');
-  return h ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
-}
+export { emptyStats, emptyDailyStats, currentDailyStreak, averageMs, formatTime, rankOf };
 
 // ---------- Rangliste ----------
 
-// Platz in einer sortierten Rangliste (1-basiert); Gleichstand teilt sich den Platz.
-export function rankOf(rows, id, value) {
-  const index = rows.findIndex((row) => row.id === id);
-  if (index < 0) return null;
-  const mine = value(rows[index]);
-  return rows.findIndex((row) => value(row) === mine) + 1;
-}
-
-// Tagesrätsel von heute: gelöst nach Zeit (weniger Fehler zuerst), danach angefangen, danach offen.
-export function dailyRanking(profiles, day) {
-  const rows = profiles.map(({ id, name, data }) => {
-    const game = data.sudoku?.daily;
-    if (!game || game.day !== day) return { id, name, tier: 2, ms: null, mistakes: 0, filled: 0 };
-    if (game.status === 'won') return { id, name, tier: 0, ms: game.time, mistakes: game.mistakes, filled: 81 };
-    const filled = gameProgress(game) >= 1000 ? Math.floor(gameProgress(game) / 1000) : 0;
-    return { id, name, tier: filled > 0 ? 1 : 2, ms: null, mistakes: game.mistakes, filled };
-  });
-  return rows.sort(
-    (a, b) =>
-      a.tier - b.tier ||
-      (a.ms ?? Infinity) - (b.ms ?? Infinity) ||
-      b.filled - a.filled ||
-      a.mistakes - b.mistakes ||
-      a.name.localeCompare(b.name, 'de'),
-  );
-}
-
-// Bestzeit je Stufe (ohne Zeit steht man am Ende).
-export function bestTimeRanking(profiles, difficulty) {
-  return profiles
-    .map(({ id, name, data }) => {
-      const stats = data.sudoku?.stats?.[difficulty] ?? emptyStats();
-      return { id, name, bestMs: stats.bestMs, won: stats.won };
-    })
-    .sort((a, b) => (a.bestMs ?? Infinity) - (b.bestMs ?? Infinity) || b.won - a.won || a.name.localeCompare(b.name, 'de'));
-}
-
-export function streakRanking(profiles, today) {
-  return profiles
-    .map(({ id, name, data }) => {
-      const daily = data.sudoku?.stats?.daily ?? emptyDailyStats();
-      return { id, name, streak: currentDailyStreak(daily, today), best: daily.maxStreak };
-    })
-    .sort((a, b) => b.streak - a.streak || b.best - a.best || a.name.localeCompare(b.name, 'de'));
-}
-
-export function solvedRanking(profiles) {
-  return profiles
-    .map(({ id, name, data }) => ({ id, name, solved: data.sudoku ? totalSolved(data.sudoku) : 0 }))
-    .sort((a, b) => b.solved - a.solved || a.name.localeCompare(b.name, 'de'));
-}
+// Tagesrätsel von heute: gelöst nach Zeit, danach angefangen, danach offen.
+export const dailyRanking = (profiles, day) => dailyRankingFor(profiles, day, 'sudoku', gameProgress);
+export const bestTimeRanking = (profiles, difficulty) => bestTimeRankingFor(profiles, 'sudoku', difficulty);
+export const streakRanking = (profiles, today) => streakRankingFor(profiles, 'sudoku', today);
+export const solvedRanking = (profiles) => solvedRankingFor(profiles, 'sudoku');
 
 // ---------- Abzeichen ----------
 
@@ -366,24 +235,10 @@ export const SUDOKU_ACHIEVEMENTS = [
   { id: 'sudoku-fast', tier: 'silver', icon: '⚡', title: 'Blitzrechner', text: 'Ein leichtes Sudoku in unter 5 Minuten gelöst.', target: 1, value: (d) => (d.sudoku.stats.easy.bestMs != null && d.sudoku.stats.easy.bestMs <= 300_000 ? 1 : 0) },
 ];
 
-// Stand der Sudoku-Abzeichen: Fortschritt, ob erreicht und seit wann (ein gespeichertes Abzeichen bleibt erreicht).
-export function sudokuAchievements(data) {
-  return SUDOKU_ACHIEVEMENTS.map(({ value, ...a }) => {
-    const progress = Math.min(value(data), a.target);
-    const earnedAt = data.achievements?.[a.id] || null;
-    return { ...a, group: 'sudoku', progress, earned: Boolean(earnedAt) || progress >= a.target, earnedAt };
-  });
-}
+// Stand der Sudoku-Abzeichen: Fortschritt, ob erreicht und seit wann.
+export const sudokuAchievements = (data) => achievementStatus(SUDOKU_ACHIEVEMENTS, data, 'sudoku');
 
 // Trägt neu erreichte Abzeichen mit Datum ein und gibt sie zurück.
-export function unlockSudokuAchievements(data, now = new Date().toISOString()) {
-  const unlocked = [];
-  for (const { value, ...a } of SUDOKU_ACHIEVEMENTS) {
-    if (data.achievements[a.id] || value(data) < a.target) continue;
-    data.achievements[a.id] = now;
-    unlocked.push({ ...a, group: 'sudoku' });
-  }
-  return unlocked;
-}
+export const unlockSudokuAchievements = (data, now) => unlockFrom(SUDOKU_ACHIEVEMENTS, data, 'sudoku', now);
 
 export { DIFFICULTIES, DIFFICULTY_KEYS, hashString };

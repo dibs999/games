@@ -50,8 +50,8 @@ import { playTap, playPlace, playUnitDone, playInvalid, playWin } from '../share
 import { $, el, wait, fillAvatar, openDialog, createToaster, clearToasts, bindDialogs, shareResult } from '../shared/ui.js';
 import { initSettings } from '../shared/settings.js';
 import { loadProfile, lastProfileId } from '../shared/session.js';
+import { renderBadgePanel, showStatsTab, renderRankingRows, statBox } from '../shared/puzzle-ui.js';
 import {
-  TIER_LABEL,
   showBadgePopups as showBadgePopupsShared,
   dismissBadgePopups,
   isBadgePopupOpen,
@@ -61,7 +61,6 @@ import {
 
 const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const PRAISE = ['Gelöst!', 'Sauber gelöst!', 'Stark!', 'Knobelprofi!', 'Geschafft!'];
-const MEDALS = ['🥇', '🥈', '🥉'];
 const PERSIST_DELAY = 1500;
 const HISTORY_MAX = 300;
 const LEVEL_NAME = { easy: 'Leicht', medium: 'Mittel', hard: 'Schwer' };
@@ -85,9 +84,9 @@ const els = {
   numpad: $('numpad'),
   toasts: $('toasts'),
   srStatus: $('sr-status'),
-  time: $('sudoku-time'),
-  level: $('sudoku-level'),
-  mistakes: $('sudoku-mistakes'),
+  time: $('puzzle-time'),
+  level: $('puzzle-level'),
+  mistakes: $('puzzle-mistakes'),
   toolUndo: $('tool-undo'),
   toolErase: $('tool-erase'),
   toolNotes: $('tool-notes'),
@@ -497,7 +496,8 @@ function inputDigit(d) {
     changed = placeDigit(game, i, d);
     if (changed) {
       const wrong = String(d) !== game.solution[i];
-      if (wrong) playInvalid();
+      // Ohne Fehleranzeige verrät auch der Klang nicht, ob die Ziffer stimmt.
+      if (wrong && sudoku().settings.showErrors) playInvalid();
       else if (game.status === 'won') {
         // Beim Sieg spielt der Jubel statt des einzelnen Klangs.
       } else if (unitComplete(game, i)) playUnitDone();
@@ -619,12 +619,6 @@ function stopCountdown() {
   state.countdownTimer = null;
 }
 
-function statBox(value, label) {
-  const box = el('div');
-  box.append(el('strong', '', value), el('span', '', label));
-  return box;
-}
-
 function showStats({ result = null, tab = 'stats' } = {}) {
   if (!state.profile || !currentGame()) return;
   const data = sudoku();
@@ -693,79 +687,12 @@ function nextRound() {
 
 // ---------- Abzeichen ----------
 
-function formatDate(iso) {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleDateString('de-DE', { day: 'numeric', month: 'short', year: 'numeric' });
-}
-
-function badgeItem(badge) {
-  const li = el('li', badge.earned ? 'badge is-earned' : 'badge');
-  li.dataset.tier = badge.tier;
-  const medal = el('span', 'badge-medal', badge.icon);
-  medal.setAttribute('aria-hidden', 'true');
-  li.append(medal, el('span', 'badge-title', badge.title), el('span', 'badge-text', badge.text));
-  if (badge.earned) {
-    const date = badge.earnedAt ? formatDate(badge.earnedAt) : '';
-    li.append(el('span', 'badge-date', date ? `${TIER_LABEL[badge.tier]} · ${date}` : TIER_LABEL[badge.tier]));
-    if (state.unseenBadges.has(badge.id)) li.append(el('span', 'badge-new', 'Neu'));
-    li.append(el('span', 'sr-only', 'erreicht'));
-  } else {
-    const progress = el('div', 'badge-progress');
-    if (badge.target > 1) {
-      const meter = el('div', 'meter');
-      meter.setAttribute('aria-hidden', 'true');
-      const fill = el('span');
-      fill.style.width = `${(badge.progress / badge.target) * 100}%`;
-      meter.append(fill);
-      progress.append(meter, el('small', '', `${badge.progress} / ${badge.target}`));
-    } else {
-      progress.append(el('small', '', 'Noch offen'));
-    }
-    li.append(progress, el('span', 'sr-only', `noch nicht erreicht, ${badge.progress} von ${badge.target}`));
-  }
-  return li;
-}
-
 function renderBadges() {
-  const list = sudokuAchievements(state.profile.data);
-  const earned = list.filter((a) => a.earned);
-  const tierCount = (tier) => earned.filter((a) => a.tier === tier).length;
-  $('badge-count').textContent = `${earned.length}/${list.length}`;
-  $('badge-count').classList.toggle('has-new', state.unseenBadges.size > 0);
-  $('badge-summary-count').textContent = earned.length;
-  $('badge-summary-total').textContent = list.length;
-  $('badge-summary-bar').style.width = `${(earned.length / list.length) * 100}%`;
-  $('badge-gold').textContent = tierCount('gold');
-  $('badge-silver').textContent = tierCount('silver');
-  $('badge-bronze').textContent = tierCount('bronze');
-  $('badge-groups').replaceChildren(
-    ...BADGE_GROUPS.map((group) => {
-      const items = group.ids.map((id) => list.find((a) => a.id === id)).filter(Boolean);
-      const section = el('section', 'badge-group');
-      const heading = el('h3', '', group.title);
-      heading.append(el('span', 'badge-group-count', `${items.filter((a) => a.earned).length}/${items.length}`));
-      const grid = el('ul', 'badge-grid');
-      grid.append(...items.map(badgeItem));
-      section.append(heading, grid);
-      return section;
-    }),
-  );
+  renderBadgePanel(sudokuAchievements(state.profile.data), BADGE_GROUPS, state.unseenBadges);
 }
 
 function selectStatsTab(tab) {
-  const badges = tab === 'badges';
-  state.statsTab = badges ? 'badges' : 'stats';
-  $('tab-stats').setAttribute('aria-selected', String(!badges));
-  $('tab-badges').setAttribute('aria-selected', String(badges));
-  $('panel-stats').hidden = badges;
-  $('panel-badges').hidden = !badges;
-  if (badges) {
-    renderBadges();
-    // Einmal angesehen, sind die neuen Abzeichen beim nächsten Mal nicht mehr „neu“.
-    state.unseenBadges.clear();
-    $('badge-count').classList.remove('has-new');
-  }
+  state.statsTab = showStatsTab(tab, state.unseenBadges, renderBadges);
 }
 
 // ---------- Rangliste ----------
@@ -836,29 +763,7 @@ function renderRanking() {
     tab.setAttribute('aria-selected', String(tab.dataset.level === state.rankingLevel));
   }
   $('ranking-caption').textContent = RANKING_CAPTION[board]();
-  const rows = rankingRows(board, rankingProfiles());
-  if (rows.length === 0) {
-    els.rankingList.replaceChildren(el('li', 'ranking-row is-empty', 'Noch keine Profile.'));
-    return;
-  }
-  const ownId = state.profile?.id;
-  els.rankingList.replaceChildren(
-    ...rows.map((row) => {
-      const li = el('li', 'ranking-row');
-      li.classList.toggle('is-me', row.id === ownId);
-      li.classList.toggle('is-empty', Boolean(row.empty));
-      const place = el('span', 'ranking-place', row.place ? MEDALS[row.place - 1] || `${row.place}.` : '–');
-      place.classList.toggle('is-medal', Boolean(row.place && row.place <= MEDALS.length));
-      place.setAttribute('aria-label', row.place ? `Platz ${row.place}` : 'ohne Platz');
-      const avatar = el('span', 'avatar');
-      avatar.setAttribute('aria-hidden', 'true');
-      fillAvatar(avatar, row.name);
-      const who = el('span', 'ranking-who');
-      who.append(el('span', 'ranking-name', row.name), el('span', 'ranking-sub', row.sub));
-      li.append(place, avatar, who, el('span', 'ranking-value', row.value));
-      return li;
-    }),
-  );
+  renderRankingRows(els.rankingList, rankingRows(board, rankingProfiles()), state.profile?.id);
 }
 
 function openRanking(board = state.rankingBoard) {

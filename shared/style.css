@@ -707,6 +707,14 @@ button {
   stroke-width: 1.6;
 }
 
+.gi-yellow {
+  fill: var(--present);
+}
+
+.gi-cells rect {
+  fill: #fffdf8;
+}
+
 .gi-num {
   fill: #fff;
   font-family: var(--font-display);
