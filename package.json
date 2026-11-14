@@ -1,8 +1,8 @@
 {
-  "name": "wordle-deutsch",
+  "name": "games",
   "private": true,
   "type": "module",
-  "description": "Wordle auf Deutsch mit Profilen",
+  "description": "Denkspiele auf Deutsch (Wordle, Sudoku) mit Profilen ohne Anmeldung",
   "scripts": {
     "start": "node tools/serve.mjs",
     "test": "node --test tests/*.test.mjs"

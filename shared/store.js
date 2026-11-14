@@ -1,7 +1,7 @@
 // Speichert Profile in Supabase (geräteübergreifend) oder, ohne Konfiguration, im localStorage dieses Browsers.
 
 import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
-import { normalizeProfileData, mergeProfileData, reuseUnchangedGames } from './game.js';
+import { normalizeProfileData, mergeProfileData, reuseUnchangedGames } from './profile.js';
 
 // Nur der Teil bis ".supabase.co" zählt, auch wenn "/rest/v1/" mitkopiert wurde.
 const BASE_URL = String(SUPABASE_URL || '').trim().replace(/\/+$/, '').replace(/\/rest\/v1$/, '');

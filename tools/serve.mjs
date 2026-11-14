@@ -29,12 +29,12 @@ createServer(async (req, res) => {
     return;
   }
   try {
-    const body = local && pathname === '/js/config.js' ? LOCAL_CONFIG : await readFile(file);
+    const body = local && pathname === '/shared/config.js' ? LOCAL_CONFIG : await readFile(file);
     res.writeHead(200, { 'Content-Type': types[extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-store' });
     res.end(body);
   } catch {
     res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('Nicht gefunden');
   }
 }).listen(port, () =>
-  console.log(`Wordle läuft auf http://localhost:${port}${local ? ' (nur lokal, ohne Supabase)' : ''}`),
+  console.log(`Games läuft auf http://localhost:${port}${local ? ' (nur lokal, ohne Supabase)' : ''}`),
 );

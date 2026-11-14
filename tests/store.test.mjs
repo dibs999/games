@@ -65,8 +65,8 @@ globalThis.fetch = async (url, options = {}) => {
   return json({ message: 'unsupported' }, 400);
 };
 
-const store = await import('../js/store.js');
-const { emptyProfileData } = await import('../js/game.js');
+const store = await import('../shared/store.js');
+const { emptyProfileData } = await import('../shared/profile.js');
 
 let clock = Date.parse('2026-10-26T10:00:00Z');
 const RealDate = Date;
@@ -91,7 +91,7 @@ async function newProfile(name) {
   return store.fetchProfile(created.id);
 }
 
-// Ohne Supabase-Konfiguration in js/config.js werden diese Tests übersprungen.
+// Ohne Supabase-Konfiguration in shared/config.js werden diese Tests übersprungen.
 test('Speichern lädt hoch und merkt den Serverstand', { skip: !store.isCloud }, async () => {
   const profile = await newProfile('Anna');
   profile.data.settings.extremeVariant = 'blind';
@@ -159,7 +159,7 @@ test('schnell hintereinander gespeicherte Stände kommen in der richtigen Reihen
 });
 
 test('gleichzeitig gespielte Runden auf zwei Geräten werden nie doppelt gezählt', { skip: !store.isCloud }, async () => {
-  const { recordEndlessResult } = await import('../js/game.js');
+  const { recordEndlessResult } = await import('../wordle/game.js');
   const profile = await newProfile('Emil');
 
   // Anderes Gerät gewinnt eine Endlos-Runde und speichert.

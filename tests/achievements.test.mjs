@@ -14,7 +14,7 @@ import {
   recordDailyResult,
   recordEndlessResult,
   EXTREME_KEYS,
-} from '../js/game.js';
+} from '../wordle/game.js';
 
 const earnedIds = (data) => achievements(data).filter((a) => a.earned).map((a) => a.id);
 

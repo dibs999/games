@@ -1,0 +1,465 @@
+/* Sudoku: Spielfeld, Zahlentasten, Werkzeuge. Farben und Grundformen kommen aus ../shared/style.css. */
+
+#game-screen {
+  --sd-line: var(--line);
+  --sd-strong: color-mix(in srgb, var(--text) 70%, var(--surface));
+  --sd-user: color-mix(in srgb, var(--sky) 80%, var(--text));
+  --sd-wrong: #e2483d;
+  --sd-selected: color-mix(in srgb, var(--accent) 30%, var(--surface));
+  --sd-same: color-mix(in srgb, var(--accent) 16%, var(--surface));
+  --sd-peer: color-mix(in srgb, var(--sky) 11%, var(--surface));
+  --sd-given: var(--surface-soft);
+}
+
+/* ---------- Anzeige über dem Feld ---------- */
+
+.sudoku-info {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 440px;
+  margin: 8px auto 0;
+  padding: 0 18px;
+  color: var(--muted);
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.sudoku-clock {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: start;
+  color: var(--text);
+}
+
+.sudoku-clock .ico {
+  width: 18px;
+  height: 18px;
+  color: var(--muted);
+}
+
+.sudoku-clock strong,
+.sudoku-mistakes strong {
+  color: var(--text);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.sudoku-level {
+  padding: 3px 12px 2px;
+  border-radius: 999px;
+  background: var(--grape-soft);
+  color: var(--grape);
+  font-weight: 900;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.sudoku-mistakes {
+  justify-self: end;
+}
+
+.sudoku-mistakes.has-mistakes strong {
+  color: var(--sd-wrong);
+}
+
+/* ---------- Spielfeld ---------- */
+
+.sudoku-main {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 8px 12px;
+  container-type: size;
+}
+
+.sudoku-board {
+  --size: min(100cqw, 100cqh);
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  grid-template-rows: repeat(9, 1fr);
+  gap: 1px;
+  width: var(--size);
+  height: var(--size);
+  overflow: hidden;
+  border: 3px solid var(--sd-strong);
+  border-radius: 14px;
+  background: var(--sd-line);
+  container-type: size;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Dicke Linien zwischen den 3×3-Blöcken. */
+.sudoku-board::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background:
+    linear-gradient(to right, transparent calc(33.333% - 1.5px), var(--sd-strong) calc(33.333% - 1.5px), var(--sd-strong) calc(33.333% + 1.5px), transparent calc(33.333% + 1.5px)),
+    linear-gradient(to right, transparent calc(66.666% - 1.5px), var(--sd-strong) calc(66.666% - 1.5px), var(--sd-strong) calc(66.666% + 1.5px), transparent calc(66.666% + 1.5px)),
+    linear-gradient(to bottom, transparent calc(33.333% - 1.5px), var(--sd-strong) calc(33.333% - 1.5px), var(--sd-strong) calc(33.333% + 1.5px), transparent calc(33.333% + 1.5px)),
+    linear-gradient(to bottom, transparent calc(66.666% - 1.5px), var(--sd-strong) calc(66.666% - 1.5px), var(--sd-strong) calc(66.666% + 1.5px), transparent calc(66.666% + 1.5px));
+}
+
+.cell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--surface);
+  color: var(--sd-user);
+  font-family: var(--font);
+  font-weight: 800;
+  line-height: 1;
+  touch-action: manipulation;
+}
+
+.cell.is-given {
+  background: var(--sd-given);
+  color: var(--text);
+  font-weight: 900;
+}
+
+.cell.is-peer { background: var(--sd-peer); }
+.cell.is-given.is-peer { background: color-mix(in srgb, var(--sd-peer) 70%, var(--sd-given)); }
+.cell.is-same { background: var(--sd-same); }
+.cell.is-selected { background: var(--sd-selected); }
+
+.cell.is-wrong {
+  background: color-mix(in srgb, var(--sd-wrong) 18%, var(--surface));
+  color: var(--sd-wrong);
+}
+
+.cell:focus-visible {
+  z-index: 3;
+  outline-offset: -3px;
+}
+
+.cell-digit {
+  font-size: 6.4cqw;
+}
+
+.cell-notes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  width: 100%;
+  height: 100%;
+  padding: 3%;
+  color: var(--muted);
+  font-weight: 800;
+  font-size: 2.9cqw;
+}
+
+.cell-notes span {
+  display: grid;
+  place-items: center;
+}
+
+.cell-notes .is-hit {
+  color: var(--accent);
+}
+
+/* Gelöst: eine Welle läuft diagonal übers Feld. */
+.sudoku-board.is-won .cell {
+  animation: cell-wave 0.6s ease both;
+  animation-delay: calc(var(--d) * 30ms);
+}
+
+@keyframes cell-wave {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.22); z-index: 3; }
+  100% { transform: scale(1); }
+}
+
+.sudoku-creating {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 20px;
+}
+
+/* ---------- Werkzeuge und Zahlentasten ---------- */
+
+.sudoku-tools {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+  padding: 4px 12px 0;
+}
+
+.tool {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
+  min-height: 52px;
+  padding: 4px 2px;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 2px solid var(--line);
+  box-shadow: 0 3px 0 var(--surface-edge);
+  color: var(--text);
+  font-weight: 800;
+  font-size: 11.5px;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.tool .ico {
+  width: 20px;
+  height: 20px;
+}
+
+.tool:disabled {
+  opacity: 0.45;
+  box-shadow: none;
+}
+
+.tool[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 3px 0 var(--accent-edge);
+  color: var(--on-accent);
+}
+
+.tool-badge {
+  position: absolute;
+  top: -7px;
+  right: 4px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--surface-soft);
+  border: 2px solid var(--line);
+  color: var(--muted);
+  font-style: normal;
+  font-weight: 900;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.tool[aria-pressed="true"] .tool-badge {
+  background: var(--surface);
+  border-color: var(--accent-edge);
+  color: var(--accent);
+}
+
+.numpad {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: 5px;
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+  padding: 10px 12px max(12px, env(safe-area-inset-bottom));
+}
+
+.num-key {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  height: clamp(44px, 8dvh, 58px);
+  padding: 0;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 2px solid var(--line);
+  box-shadow: 0 3px 0 var(--surface-edge);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 26px;
+  line-height: 1;
+}
+
+.num-key:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--surface-edge);
+}
+
+.num-key small {
+  position: absolute;
+  right: 5px;
+  bottom: 3px;
+  color: var(--muted);
+  font-family: var(--font);
+  font-weight: 800;
+  font-size: 10px;
+}
+
+.num-key.is-done {
+  opacity: 0.35;
+  box-shadow: none;
+}
+
+.num-key.is-focus {
+  background: var(--sd-selected);
+  border-color: var(--accent);
+}
+
+.notes-mode .num-key {
+  color: var(--accent);
+  font-size: 22px;
+}
+
+/* ---------- Ergebnis und Statistik ---------- */
+
+.dialog .sudoku-result-icon {
+  margin: 4px 0 0;
+  font-size: 56px;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.dialog .sudoku-result-summary {
+  margin: 6px 0 0;
+  font-weight: 800;
+  text-align: center;
+}
+
+.level-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.level-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 2px 10px;
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: var(--surface-soft);
+  border: 2px solid var(--line);
+}
+
+.level-list strong {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 17px;
+}
+
+.level-list .level-time {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 20px;
+  text-align: right;
+}
+
+.level-list small {
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 12.5px;
+}
+
+.level-list .level-time-label {
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 12.5px;
+  text-align: right;
+}
+
+.ranking-levels {
+  margin-top: 8px;
+}
+
+.stats-numbers.is-three {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+/* ---------- Kleine und flache Bildschirme ---------- */
+
+@media (max-height: 700px) {
+  .sudoku-info { margin-top: 4px; }
+  .sudoku-main { padding: 6px 12px; }
+  .tool { min-height: 46px; }
+  .tool .ico { width: 18px; height: 18px; }
+  .tool span:not(.tool-badge) { font-size: 11px; }
+  .numpad { padding-top: 8px; padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+}
+
+@media (orientation: portrait) and (max-height: 620px) {
+  .game-header { height: 48px; }
+  .mode-tabs { margin-top: 2px; padding: 3px; }
+  .mode-tab { min-height: 32px; font-size: 14.5px; }
+  .sudoku-info { margin-top: 2px; }
+  .sudoku-clock strong,
+  .sudoku-mistakes strong { font-size: 17px; }
+  .sudoku-main { padding: 4px 12px; }
+  .sudoku-tools { padding-top: 2px; gap: 6px; }
+  .tool { min-height: 40px; flex-direction: row; gap: 5px; font-size: 11px; }
+  .tool .ico { width: 16px; height: 16px; }
+  .tool-badge { display: none; }
+  .numpad { gap: 4px; padding: 6px 12px max(6px, env(safe-area-inset-bottom)); }
+  .num-key { height: 40px; font-size: 22px; }
+}
+
+/* Schmale Handys: die Restanzeige an den Zahlentasten würde die Ziffer überdecken. */
+@media (max-width: 360px) {
+  .num-key small { display: none; }
+}
+
+.cell.is-selected.is-wrong {
+  background: color-mix(in srgb, var(--sd-wrong) 34%, var(--surface));
+}
+
+/* Handy quer: Feld links, Bedienung rechts. */
+@media (orientation: landscape) and (max-height: 520px) {
+  #game-screen {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto minmax(0, 1fr);
+    grid-template-areas:
+      "header header"
+      "main tabs"
+      "main info"
+      "main tools"
+      "main numpad";
+    align-content: start;
+    max-width: 960px;
+  }
+
+  .game-header { grid-area: header; height: 50px; }
+  .mode-tabs { grid-area: tabs; margin-top: 2px; }
+  .mode-tab { min-width: 0; min-height: 32px; padding-inline: 4px; overflow: hidden; font-size: 13px; text-overflow: ellipsis; }
+  .sudoku-info { grid-area: info; margin: 6px 0 0; padding: 0 12px; max-width: none; }
+  .sudoku-main { grid-area: main; padding: 4px 8px 8px 12px; }
+  .sudoku-tools { grid-area: tools; padding: 6px 12px 0; max-width: none; gap: 6px; }
+  .tool { min-height: 40px; flex-direction: row; gap: 4px; font-size: 11px; }
+  .tool .ico { width: 16px; height: 16px; }
+  .tool-badge { display: none; }
+  .numpad { grid-area: numpad; align-self: start; padding: 8px 12px 8px; max-width: none; gap: 4px; }
+  .num-key { height: 38px; font-size: 20px; }
+  .num-key small { display: none; }
+}

@@ -11,8 +11,8 @@ import {
   newExtremeGame,
   playExtremeGuess,
   devilGameStale,
-} from '../js/game.js';
-import { SOLUTIONS } from '../js/words.js';
+} from '../wordle/game.js';
+import { SOLUTIONS } from '../wordle/words.js';
 
 function withEndless(results) {
   const data = emptyProfileData();

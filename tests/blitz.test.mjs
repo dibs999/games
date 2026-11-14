@@ -11,7 +11,7 @@ import {
   blitzTimeBonus,
   recordBlitzRun,
   blitzRanking,
-} from '../js/game.js';
+} from '../wordle/game.js';
 
 test('Blitz-Statistik: Bestwerte und Anzahl der Durchgänge werden übernommen', () => {
   const remote = emptyProfileData();

@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Wordle auf Deutsch: Errate das Wort mit fünf Buchstaben in sechs Versuchen.">
+  <meta name="theme-color" content="#221921" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#fff8f0" media="(prefers-color-scheme: light)">
+  <title>Wordle Deutsch</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='6' y='10' width='88' height='84' rx='22' fill='%231c5f2d'/%3E%3Crect x='6' y='4' width='88' height='84' rx='22' fill='%232a8540'/%3E%3Ctext x='50' y='66' font-size='58' font-family='Arial Rounded MT Bold,Arial,sans-serif' font-weight='bold' text-anchor='middle' fill='white'%3EW%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@600;700;800;900&display=swap">
+  <link rel="stylesheet" href="../shared/style.css">
+  <script src="../shared/theme.js"></script>
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <!-- Profil wird geladen (oder Fehler) -->
+  <main id="load-screen" class="screen load-screen">
+    <p id="load-status" class="load-status" role="status">Profil wird geladen …</p>
+    <div id="load-actions" class="load-actions"></div>
+  </main>
+
+  <!-- Spiel -->
+  <div id="game-screen" class="screen" hidden>
+    <header class="game-header">
+      <button id="switch-profile" class="profile-chip" type="button" aria-label="Profil wechseln">
+        <span class="avatar avatar-small" aria-hidden="true"></span>
+        <span class="profile-chip-name"></span>
+        <svg class="ico chip-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9.5l5-5 5 5M7 14.5l5 5 5-5"/></svg>
+      </button>
+      <a class="logo-mini" href="../" aria-label="Wordle – zur Spielauswahl">
+        <span class="lt s-correct" style="--r:-6deg" aria-hidden="true">W</span><span class="logo-mini-rest" aria-hidden="true">ordle</span>
+      </a>
+      <div class="header-actions">
+        <button class="icon-button" type="button" data-open="help-dialog" aria-label="Spielregeln">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.3"/><path d="M9.4 9.4a2.7 2.7 0 0 1 5.3.8c0 1.9-2.7 2.2-2.7 4"/><circle cx="12" cy="17.4" r=".7" fill="currentColor"/></svg>
+        </button>
+        <button class="icon-button" type="button" data-open="stats-dialog" aria-label="Statistik">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 20v-6M12 20V5M18.5 20v-9.5"/></svg>
+        </button>
+        <button class="icon-button" type="button" data-open="settings-dialog" aria-label="Einstellungen">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5h9.5M18.5 7.5H20M4 16.5h3.5M12.5 16.5H20"/><circle cx="16" cy="7.5" r="2.4"/><circle cx="10" cy="16.5" r="2.4"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <nav class="mode-tabs" aria-label="Spielmodus">
+      <button class="mode-tab" type="button" data-mode="daily" aria-pressed="true">Tagesrätsel</button>
+      <button class="mode-tab" type="button" data-mode="endless" aria-pressed="false">Endlos</button>
+      <!-- Zeigt die aktive Extrem-Variante; nochmal antippen öffnet die Auswahl. -->
+      <button class="mode-tab" type="button" data-mode="extreme" aria-pressed="false">Extrem <span id="extreme-badge" class="variant-badge" aria-hidden="true">😈</span></button>
+      <button class="mode-tab" type="button" data-mode="blitz" aria-pressed="false">Blitz</button>
+    </nav>
+
+    <div id="variant-bar" class="variant-bar" hidden>
+      <div id="blitz-bar" class="blitz-bar" hidden>
+        <div class="blitz-hud">
+          <div id="blitz-clock" class="blitz-stat blitz-clock">
+            <span class="blitz-stat-label">Zeit</span>
+            <strong id="blitz-time">2:00</strong>
+          </div>
+          <div id="blitz-points-box" class="blitz-stat">
+            <span class="blitz-stat-label">Punkte</span>
+            <strong id="blitz-points">0</strong>
+            <span id="blitz-combo" class="blitz-combo" hidden></span>
+          </div>
+          <div class="blitz-stat">
+            <span class="blitz-stat-label">Wörter</span>
+            <strong id="blitz-solved">0</strong>
+          </div>
+          <button id="blitz-skip" class="blitz-skip" type="button" aria-label="Wort überspringen" title="Wort überspringen" disabled>
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6l8 6-8 6zM14 6l8 6-8 6"/></svg>
+          </button>
+        </div>
+        <div id="blitz-meter" class="meter blitz-meter" aria-hidden="true"><span id="blitz-meter-fill"></span></div>
+      </div>
+    </div>
+
+    <main class="game-main">
+      <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+      <div id="sr-status" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+      <div id="board" class="board" role="grid" aria-label="Spielfeld"></div>
+      <div id="blitz-start-panel" class="blitz-start-panel" hidden>
+        <div class="blitz-start-card">
+          <strong id="blitz-start-title" class="blitz-start-title">Blitz</strong>
+          <p class="blitz-start-text">2 Minuten. Jedes gelöste Wort bringt Punkte und Extrazeit – je weniger Versuche, desto mehr.</p>
+          <button id="blitz-start" class="button blitz-start" type="button"><span aria-hidden="true">▶</span> Start</button>
+          <p id="blitz-record" class="blitz-record"></p>
+        </div>
+      </div>
+      <div id="blitz-countdown" class="blitz-countdown" aria-live="assertive" hidden></div>
+    </main>
+
+    <div id="keyboard" class="keyboard" aria-label="Tastatur"></div>
+  </div>
+
+  <!-- Spielregeln -->
+  <dialog id="help-dialog" class="dialog" aria-labelledby="help-title">
+    <div class="toasts dialog-toasts" role="status" aria-live="polite"></div>
+    <div class="dialog-body">
+      <div class="grabber" aria-hidden="true"></div>
+      <button class="dialog-close" type="button" data-close aria-label="Schließen"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+      <h2 id="help-title">So wird gespielt</h2>
+      <p>Errate das Wort mit fünf Buchstaben in sechs Versuchen.</p>
+      <ul class="help-list">
+        <li>Jeder Versuch muss ein gültiges deutsches Wort sein.</li>
+        <li>Nach jedem Versuch zeigen die Farben, wie nah du dran bist.</li>
+        <li>Ä, Ö und Ü sind eigene Buchstaben. ß wird als SS geschrieben.</li>
+      </ul>
+      <h3>Beispiele</h3>
+      <div class="example" aria-label="Beispiel: B ist an der richtigen Stelle">
+        <span class="tile" data-state="correct">B</span><span class="tile" data-filled>L</span><span class="tile" data-filled>U</span><span class="tile" data-filled>M</span><span class="tile" data-filled>E</span>
+      </div>
+      <p><strong>B</strong> ist im Wort und an der richtigen Stelle.</p>
+      <div class="example" aria-label="Beispiel: I ist im Wort, aber an einer anderen Stelle">
+        <span class="tile" data-filled>P</span><span class="tile" data-state="present">I</span><span class="tile" data-filled>L</span><span class="tile" data-filled>O</span><span class="tile" data-filled>T</span>
+      </div>
+      <p><strong>I</strong> ist im Wort, aber an einer anderen Stelle.</p>
+      <div class="example" aria-label="Beispiel: K ist nicht im Wort">
+        <span class="tile" data-filled>W</span><span class="tile" data-filled>O</span><span class="tile" data-filled>L</span><span class="tile" data-state="absent">K</span><span class="tile" data-filled>E</span>
+      </div>
+      <p><strong>K</strong> kommt im Wort nicht vor.</p>
+      <h3>Modi</h3>
+      <p><strong>Tagesrätsel:</strong> Ein Wort pro Tag, für alle gleich. Um Mitternacht gibt es ein neues.</p>
+      <p><strong>Endlos:</strong> Beliebig viele zufällige Wörter, mit eigener Statistik.</p>
+      <p><strong>Extrem:</strong> Vier richtig schwere Varianten, jede mit eigener Statistik. Das Emoji im Reiter zeigt die aktive Variante; nochmal auf „Extrem“ tippen, um zu wechseln:</p>
+      <ul class="help-list">
+        <li><strong>😈 Teufel</strong> (8 Versuche): Das Spiel legt sich nicht fest, sondern weicht dir aus. Es zeigt immer die Farben, nach denen die meisten Wörter übrig bleiben. Erst wenn nur noch eins passt, kannst du es treffen.</li>
+        <li><strong>🤥 Lügner</strong> (8 Versuche): In jeder Reihe zeigt genau eine Kachel die falsche Farbe. Welche, wird nicht verraten.</li>
+        <li><strong>🙈 Blind</strong> (6 Versuche): Es gibt nur Grün und Grau, kein Gelb. Die Tastatur bleibt ungefärbt.</li>
+        <li><strong>🎯 Mastermind</strong> (8 Versuche): Keine Farben, nur zwei Zahlen: wie viele Buchstaben an der richtigen und wie viele an einer anderen Stelle sind.</li>
+      </ul>
+      <p><strong>Blitz:</strong> Du startest mit 2 Minuten und löst so viele Wörter wie möglich. Jedes gelöste Wort bringt Punkte und Extrazeit: mit einem Versuch 60 Punkte und 30 Sekunden, mit sechs Versuchen nur noch 10 Punkte und 5 Sekunden. Löst du mehrere Wörter hintereinander, gibt es einen Kombo-Bonus (+10 je Wort, höchstens +50). Ein Wort, bei dem du festhängst, kannst du überspringen – das beendet aber die Kombo.</p>
+      <h3>Abzeichen und Rangliste</h3>
+      <p>Für Erfolge gibt es Abzeichen in Bronze, Silber und Gold. Sie stehen unter „Statistik“ → „Abzeichen“, mit Fortschritt bis zum nächsten. In der Rangliste vergleicht ihr euch: heute, Serien, Blitz und Abzeichen.</p>
+    </div>
+  </dialog>
+
+  <!-- Statistik und Abzeichen -->
+  <dialog id="stats-dialog" class="dialog" aria-labelledby="stats-title">
+    <div class="toasts dialog-toasts" role="status" aria-live="polite"></div>
+    <div class="dialog-body">
+      <div class="grabber" aria-hidden="true"></div>
+      <button class="dialog-close" type="button" data-close aria-label="Schließen"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+      <div id="result-section" class="result-section" hidden>
+        <div id="result-tiles" class="win-tiles" aria-hidden="true"></div>
+        <h2 id="result-title" class="result-title"></h2>
+        <p id="result-word" class="result-word"></p>
+        <a id="duden-link" class="duden-link" href="#" target="_blank" rel="noopener">Im Duden nachschlagen ↗</a>
+        <div id="blitz-result" class="blitz-result" hidden>
+          <p class="blitz-score"><strong id="blitz-score">0</strong> <span id="blitz-score-label">Punkte</span></p>
+          <p id="blitz-best-note" class="blitz-best-note" hidden>Neuer Rekord!</p>
+          <p id="blitz-rank" class="blitz-rank"></p>
+          <ul id="blitz-words" class="blitz-words" aria-label="Wörter dieses Durchgangs"></ul>
+        </div>
+        <div class="result-actions">
+          <button id="share-button" class="button" type="button">
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5v11M7.5 8 12 3.5 16.5 8"/><path d="M5 13v5.5A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V13"/></svg>
+            <span>Teilen</span>
+          </button>
+          <button id="next-button" class="button button-secondary" type="button">
+            <span id="next-label"></span>
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="dialog-tabs" role="tablist" aria-label="Ansicht">
+        <button id="tab-stats" class="dialog-tab" type="button" role="tab" aria-selected="true" aria-controls="panel-stats">Statistik</button>
+        <button id="tab-badges" class="dialog-tab" type="button" role="tab" aria-selected="false" aria-controls="panel-badges">Abzeichen <span id="badge-count" class="tab-count"></span></button>
+      </div>
+
+      <div id="panel-stats" role="tabpanel" aria-labelledby="tab-stats">
+        <div class="stats-head">
+          <h2 id="stats-title">Statistik</h2>
+          <span id="stats-mode" class="stats-mode"></span>
+        </div>
+        <div id="blitz-stats" class="stats-numbers blitz-stats" hidden>
+          <div><strong id="blitz-best">0</strong><span>Punkte-Rekord</span></div>
+          <div><strong id="blitz-runs">0</strong><span>Durchgänge</span></div>
+          <div><strong id="blitz-average">0</strong><span>Ø Wörter</span></div>
+        </div>
+        <div id="stats-numbers" class="stats-numbers">
+          <div><strong id="stat-played">0</strong><span>Gespielt</span></div>
+          <div><strong id="stat-winrate">0</strong><span>% Gewonnen</span></div>
+          <div><strong id="stat-streak">0</strong><span>Aktuelle Serie</span></div>
+          <div><strong id="stat-max">0</strong><span>Beste Serie</span></div>
+        </div>
+        <h3 id="distribution-title">Verteilung der Versuche</h3>
+        <ol id="distribution" class="distribution"></ol>
+        <p id="countdown" class="countdown" hidden></p>
+      </div>
+
+      <div id="panel-badges" role="tabpanel" aria-labelledby="tab-badges" hidden>
+        <div class="badge-summary">
+          <p><strong id="badge-summary-count">0</strong> von <span id="badge-summary-total">0</span> Abzeichen</p>
+          <div class="meter" aria-hidden="true"><span id="badge-summary-bar"></span></div>
+          <p class="badge-tiers"><span class="tier-dot tier-gold"></span><span id="badge-gold">0</span> Gold · <span class="tier-dot tier-silver"></span><span id="badge-silver">0</span> Silber · <span class="tier-dot tier-bronze"></span><span id="badge-bronze">0</span> Bronze</p>
+        </div>
+        <div id="badge-groups" class="badge-groups"></div>
+      </div>
+
+      <button id="stats-ranking" class="button button-secondary stats-ranking" type="button">
+        <span aria-hidden="true">🏆</span> Rangliste
+      </button>
+    </div>
+  </dialog>
+
+  <!-- Extrem-Variante wählen -->
+  <dialog id="variant-dialog" class="dialog" aria-labelledby="variant-title">
+    <div class="toasts dialog-toasts" role="status" aria-live="polite"></div>
+    <div class="dialog-body">
+      <div class="grabber" aria-hidden="true"></div>
+      <button class="dialog-close" type="button" data-close aria-label="Schließen"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+      <h2 id="variant-title">Extrem-Variante</h2>
+      <p class="variant-intro">Vier richtig schwere Varianten, jede mit eigener Statistik. Zum Wechseln später einfach nochmal auf „Extrem“ tippen.</p>
+      <div id="variant-options" class="variant-options" role="group" aria-label="Extrem-Variante"></div>
+    </div>
+  </dialog>
+
+  <!-- Rangliste -->
+  <dialog id="ranking-dialog" class="dialog" aria-labelledby="ranking-title">
+    <div class="toasts dialog-toasts" role="status" aria-live="polite"></div>
+    <div class="dialog-body">
+      <div class="grabber" aria-hidden="true"></div>
+      <button class="dialog-close" type="button" data-close aria-label="Schließen"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+      <h2 id="ranking-title">Rangliste</h2>
+      <div class="dialog-tabs ranking-tabs" role="tablist" aria-label="Kategorie">
+        <button class="dialog-tab" type="button" role="tab" data-board="daily" aria-selected="true" aria-controls="ranking-list">Heute</button>
+        <button class="dialog-tab" type="button" role="tab" data-board="streak" aria-selected="false" aria-controls="ranking-list">Serien</button>
+        <button class="dialog-tab" type="button" role="tab" data-board="blitz" aria-selected="false" aria-controls="ranking-list">Blitz</button>
+        <button class="dialog-tab" type="button" role="tab" data-board="badges" aria-selected="false" aria-controls="ranking-list">Abzeichen</button>
+      </div>
+      <p id="ranking-caption" class="ranking-caption"></p>
+      <ol id="ranking-list" class="ranking-list" role="tabpanel"></ol>
+    </div>
+  </dialog>
+
+  <!-- Neues Abzeichen -->
+  <div id="badge-popup" class="badge-popup" role="status" aria-live="polite" hidden>
+    <div class="badge-popup-card">
+      <span class="badge-popup-label">Neues Abzeichen!</span>
+      <span id="badge-popup-icon" class="badge-popup-icon" aria-hidden="true"></span>
+      <strong id="badge-popup-title" class="badge-popup-title"></strong>
+      <span id="badge-popup-text" class="badge-popup-text"></span>
+      <span id="badge-popup-tier" class="badge-popup-tier"></span>
+    </div>
+  </div>
+
+  <!-- Einstellungen -->
+  <dialog id="settings-dialog" class="dialog" aria-labelledby="settings-title">
+    <div class="toasts dialog-toasts" role="status" aria-live="polite"></div>
+    <div class="dialog-body">
+      <div class="grabber" aria-hidden="true"></div>
+      <button class="dialog-close" type="button" data-close aria-label="Schließen"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+      <h2 id="settings-title">Einstellungen</h2>
+      <label class="setting">
+        <span>
+          <strong>Töne</strong>
+          <small>Klick beim Tippen, Farbe beim Aufdecken, Jingle bei Sieg. Gilt für dieses Gerät.</small>
+        </span>
+        <input id="sound-toggle" type="checkbox" role="switch">
+      </label>
+      <label class="setting">
+        <span>
+          <strong>Hoher Kontrast</strong>
+          <small>Orange und Blau statt Grün und Gelb. Gilt für dieses Gerät.</small>
+        </span>
+        <input id="high-contrast" type="checkbox" role="switch">
+      </label>
+      <label class="setting">
+        <span>
+          <strong>Design</strong>
+          <small>Gilt für dieses Gerät.</small>
+        </span>
+        <select id="theme-select">
+          <option value="system">Wie System</option>
+          <option value="light">Hell</option>
+          <option value="dark">Dunkel</option>
+        </select>
+      </label>
+    </div>
+  </dialog>
+</body>
+</html>

@@ -1,5 +1,11 @@
--- Tabelle für die Spielerprofile von Wordle Deutsch.
+-- Tabelle für die Spielerprofile aller Spiele (Wordle, Sudoku, …). Jedes Spiel hat einen Abschnitt im JSON-Feld "data".
 -- Im Supabase-Dashboard unter "SQL Editor" einfügen und auf "Run" klicken.
+--
+-- Die Größe eines Profils ist auf rund 20 KB begrenzt (aktuell reichen etwa 6–10 KB). Kommen weitere Spiele dazu,
+-- lässt sich die Grenze so anheben:
+--   alter table public.profiles drop constraint profiles_data_check;
+--   alter table public.profiles add constraint profiles_data_check
+--     check (jsonb_typeof(data) = 'object' and pg_column_size(data) < 100000);
 
 create table if not exists public.profiles (
   id uuid primary key default gen_random_uuid(),

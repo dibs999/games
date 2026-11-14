@@ -18,8 +18,8 @@ import {
   mergeProfileData,
   emptyProfileData,
   recordEndlessResult,
-} from '../js/game.js';
-import { SOLUTIONS } from '../js/words.js';
+} from '../wordle/game.js';
+import { SOLUTIONS } from '../wordle/words.js';
 
 // Reproduzierbarer Zufall für die Tests.
 function seeded(seed) {

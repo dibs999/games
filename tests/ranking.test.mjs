@@ -2,7 +2,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { dailyRanking, streakRanking, durationMs, formatDuration, emptyProfileData, recordDailyResult } from '../js/game.js';
+import { dailyRanking, streakRanking, durationMs, formatDuration, emptyProfileData, recordDailyResult } from '../wordle/game.js';
 
 const DAY = '2026-10-26';
 

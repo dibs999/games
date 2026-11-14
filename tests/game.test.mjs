@@ -17,8 +17,8 @@ import {
   mergeProfileData,
   emptyProfileData,
   shareGrid,
-} from '../js/game.js';
-import { SOLUTIONS, ALLOWED } from '../js/words.js';
+} from '../wordle/game.js';
+import { SOLUTIONS, ALLOWED } from '../wordle/words.js';
 
 test('alle Buchstaben richtig', () => {
   assert.deepEqual(evaluateGuess('APFEL', 'APFEL'), ['correct', 'correct', 'correct', 'correct', 'correct']);

@@ -11,7 +11,7 @@ globalThis.localStorage = {
   removeItem: (key) => storage.delete(key),
 };
 
-const sound = await import('../js/sound.js');
+const sound = await import('../shared/sound.js');
 
 test('Töne sind standardmäßig an', () => {
   assert.equal(sound.isSoundEnabled(), true);
@@ -40,6 +40,8 @@ test('ohne Audio-Unterstützung läuft nichts und wirft keinen Fehler', () => {
     sound.playCount(0);
     sound.playTimeUp();
     sound.playBadge('gold');
+    sound.playPlace(5);
+    sound.playUnitDone();
   });
 });
 

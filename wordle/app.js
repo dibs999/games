@@ -14,7 +14,6 @@ import {
   recordDailyResult,
   recordEndlessResult,
   currentDailyStreak,
-  emptyProfileData,
   shareGrid,
   newExtremeGame,
   playExtremeGuess,
@@ -22,8 +21,6 @@ import {
   devilGameStale,
   extremeKeyboardStates,
   extremeShareGrid,
-  mergeProfileData,
-  reuseUnchangedGames,
   dailyRanking,
   streakRanking,
   blitzRanking,
@@ -40,24 +37,19 @@ import {
   unlockAchievements,
   recordWinTime,
 } from './game.js';
-import { burstConfetti } from './fx.js';
+import { burstConfetti } from '../shared/fx.js';
 import {
   isCloud,
   listProfiles,
   fetchProfile,
-  createProfile,
   saveProfile,
   flushPending,
   flushAllPending,
   hasPendingSave,
   pendingData,
-  cleanName,
   timeValue,
   onConflictMerged,
-  setActiveProfile,
-  listLocalOnlyProfiles,
-  importLocalProfile,
-} from './store.js';
+} from '../shared/store.js';
 import {
   playTap,
   playFlip,
@@ -67,21 +59,26 @@ import {
   playTick,
   playCount,
   playTimeUp,
-  playBadge,
-  isSoundEnabled,
-  setSoundEnabled,
-} from './sound.js';
+} from '../shared/sound.js';
+import { mergeProfileData, reuseUnchangedGames } from '../shared/profile.js';
+import { $, el, fillAvatar, openDialog, createToaster, clearToasts, bindDialogs } from '../shared/ui.js';
+import { initSettings, readSetting, writeSetting } from '../shared/settings.js';
+import { loadProfile, lastProfileId } from '../shared/session.js';
+import {
+  TIER_LABEL,
+  showBadgePopups as showBadgePopupsShared,
+  dismissBadgePopups,
+  isBadgePopupOpen,
+  advanceBadgePopup,
+  initBadgePopup,
+} from '../shared/badge-popup.js';
 
 const ALLOWED_SET = new Set([...ALLOWED, ...SOLUTIONS]);
-const LAST_PROFILE_KEY = 'wordle-de:last-profile';
-const THEME_KEY = 'wordle-de:theme';
-const CONTRAST_KEY = 'wordle-de:contrast';
 const EXTREME_INTRO_KEY = 'wordle-de:extreme-intro';
 const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const FLIP_STEP = REDUCED_MOTION ? 0 : 300;
 const FLIP_HALF = REDUCED_MOTION ? 0 : 250;
 const PRAISE = ['Genial!', 'Großartig!', 'Beeindruckend!', 'Super!', 'Gut gemacht!', 'Geschafft!', 'Stark!'];
-const AVATAR_COLOR_COUNT = 6;
 const KEY_ROWS = [
   ['Q', 'W', 'E', 'R', 'T', 'Z', 'U', 'I', 'O', 'P', 'Ü'],
   ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'Ö', 'Ä'],
@@ -90,29 +87,12 @@ const KEY_ROWS = [
 const STATE_LABEL = { correct: 'richtig', present: 'an anderer Stelle', absent: 'nicht im Wort' };
 const BLITZ_PAUSE = 1300;
 const BLITZ_URGENT_MS = 10_000; // in den letzten Sekunden tickt die Uhr und der Balken wird rot
-const BADGE_POPUP_MS = 3600;
-const TIER_LABEL = { bronze: 'Bronze', silver: 'Silber', gold: 'Gold' };
-const TIER_CONFETTI = {
-  bronze: ['#c27a3b', '#e0a46b', '#8a4f22', '#f3c99d'],
-  silver: ['#9aa4ae', '#d7dde2', '#ffffff', '#6f7c88'],
-  gold: ['#e3a90c', '#ffd23f', '#fff3b0', '#c98a00'],
-};
 const MEDALS = ['🥇', '🥈', '🥉'];
 
-const $ = (id) => document.getElementById(id);
 const els = {
-  profileScreen: $('profile-screen'),
-  profileList: $('profile-list'),
-  profileStatus: $('profile-status'),
-  profileToasts: $('profile-toasts'),
-  localHint: $('local-hint'),
-  localImport: $('local-import'),
-  localImportList: $('local-import-list'),
-  newProfileButton: $('new-profile-button'),
-  newProfileDialog: $('new-profile-dialog'),
-  newProfileForm: $('new-profile-form'),
-  newProfileName: $('new-profile-name'),
-  newProfileError: $('new-profile-error'),
+  loadScreen: $('load-screen'),
+  loadStatus: $('load-status'),
+  loadActions: $('load-actions'),
   gameScreen: $('game-screen'),
   switchProfile: $('switch-profile'),
   variantBar: $('variant-bar'),
@@ -124,12 +104,10 @@ const els = {
   settingsDialog: $('settings-dialog'),
   highContrast: $('high-contrast'),
   soundToggle: $('sound-toggle'),
-  rankingButton: $('ranking-button'),
   rankingDialog: $('ranking-dialog'),
   rankingList: $('ranking-list'),
   variantDialog: $('variant-dialog'),
   variantOptions: $('variant-options'),
-  badgePopup: $('badge-popup'),
   blitzStart: $('blitz-start'),
   blitzStartPanel: $('blitz-start-panel'),
   blitzSkip: $('blitz-skip'),
@@ -160,48 +138,12 @@ const state = {
   statsTab: 'stats', // 'stats' | 'badges'
   rankingBoard: 'daily', // 'daily' | 'streak' | 'blitz' | 'badges'
   unseenBadges: new Set(), // in dieser Sitzung erreicht und noch nicht angesehen
-  badgePopup: null, // Warteschlange der Meldungen „Neues Abzeichen“
 };
 
 // ---------- Hilfsfunktionen ----------
 
-function readSetting(key) {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-function writeSetting(key, value) {
-  try {
-    if (value === null) localStorage.removeItem(key);
-    else localStorage.setItem(key, value);
-  } catch {
-    // Privater Modus o. Ä.: Einstellung gilt dann nur bis zum Neuladen.
-  }
-}
-
-// Meldungen erscheinen im offenen Dialog, sonst auf dem sichtbaren Bildschirm.
-function toast(message, duration = 1500) {
-  const host =
-    document.querySelector('dialog[open] .toasts') || (els.gameScreen.hidden ? els.profileToasts : els.toasts);
-  const el = document.createElement('div');
-  el.className = 'toast';
-  el.textContent = message;
-  host.prepend(el);
-  if (duration > 0) {
-    setTimeout(() => {
-      el.classList.add('is-hiding');
-      setTimeout(() => el.remove(), 350);
-    }, duration);
-  }
-  return el;
-}
-
-function clearToasts() {
-  for (const host of document.querySelectorAll('.toasts')) host.replaceChildren();
-}
+// Meldungen erscheinen im offenen Dialog, sonst auf dem Spielbildschirm.
+const toast = createToaster(() => els.toasts);
 
 // Für Screenreader: Ergebnis eines Versuchs vorlesen lassen.
 function announce(message) {
@@ -211,253 +153,26 @@ function announce(message) {
   });
 }
 
-function el(tag, className = '', text = null) {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  if (text != null) node.textContent = text;
-  return node;
-}
+// ---------- Profil ----------
 
-function nameHash(name) {
-  let hash = 0;
-  for (const ch of name) hash = (hash * 31 + ch.codePointAt(0)) >>> 0;
-  return hash;
-}
-
-// Jeder Name bekommt eine feste Farbe aus der Palette und eine leichte, verspielte Drehung.
-function fillAvatar(el, name) {
-  const hash = nameHash(name);
-  el.textContent = letters(name)[0] || '?';
-  el.style.setProperty('--avatar', `var(--avatar-${(hash % AVATAR_COLOR_COUNT) + 1})`);
-  el.style.setProperty('--r', `${(hash % 11) - 5}deg`);
-}
-
-function openDialog(dialog) {
-  if (!dialog.open) dialog.showModal();
-}
-
-function closeAllDialogs() {
-  for (const dialog of document.querySelectorAll('dialog[open]')) dialog.close();
-}
-
-// ---------- Profile ----------
-
-function lastProfileId() {
-  return readSetting(LAST_PROFILE_KEY);
-}
-
-function profileSummary(profile) {
-  const { daily, stats } = profile.data;
-  const parts = [];
-  const streak = currentDailyStreak(stats.daily, state.today);
-  if (streak > 0) parts.push({ text: `🔥 ${streak}`, kind: 'streak' });
-  const earned = achievements(profile.data).filter((a) => a.earned).length;
-  if (earned > 0) parts.push({ text: `🏅 ${earned}`, kind: 'badge' });
-  if (daily?.day === state.today && daily.status === 'won') parts.push({ text: `Heute ✓ ${daily.guesses.length}/6`, kind: 'win' });
-  else if (daily?.day === state.today && daily.status === 'lost') parts.push({ text: 'Heute ✗', kind: 'open' });
-  else parts.push({ text: 'Heute offen', kind: 'open' });
-  return parts;
-}
-
-function renderProfiles() {
-  const lastId = lastProfileId();
-  const sorted = [...state.profiles].sort((a, b) => {
-    if (a.id === lastId) return -1;
-    if (b.id === lastId) return 1;
-    return a.name.localeCompare(b.name, 'de');
-  });
-
-  els.profileList.replaceChildren(
-    ...sorted.map((profile) => {
-      const li = document.createElement('li');
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'profile-card';
-      button.dataset.id = profile.id;
-      if (profile.id === lastId) {
-        button.classList.add('is-last');
-        const badge = document.createElement('span');
-        badge.className = 'badge-last';
-        badge.textContent = 'Zuletzt gespielt';
-        button.append(badge);
-      }
-
-      const avatar = document.createElement('span');
-      avatar.className = 'avatar';
-      avatar.setAttribute('aria-hidden', 'true');
-      fillAvatar(avatar, profile.name);
-
-      const name = document.createElement('span');
-      name.className = 'profile-card-name';
-      name.textContent = profile.name;
-
-      const meta = document.createElement('span');
-      meta.className = 'profile-card-meta';
-      for (const part of profileSummary(profile)) {
-        const item = document.createElement('span');
-        item.className = `pill pill-${part.kind}`;
-        item.textContent = part.text;
-        meta.append(item);
-      }
-
-      button.append(avatar, name, meta);
-      li.append(button);
-      return li;
-    }),
-  );
-
-  if (state.profiles.length === 0) {
-    setProfileStatus('Noch keine Profile. Leg das erste an!');
-  }
-}
-
-function renderLocalImport() {
-  const locals = listLocalOnlyProfiles();
-  els.localImport.hidden = locals.length === 0;
-  els.localImportList.replaceChildren(
-    ...locals.map((profile) => {
-      const li = document.createElement('li');
-      const avatar = document.createElement('span');
-      avatar.className = 'avatar';
-      avatar.setAttribute('aria-hidden', 'true');
-      fillAvatar(avatar, profile.name);
-      const name = document.createElement('span');
-      name.className = 'local-import-name';
-      name.textContent = profile.name;
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'button';
-      button.dataset.importId = profile.id;
-      button.textContent = 'Online übernehmen';
-      button.setAttribute('aria-label', `${profile.name} online übernehmen`);
-      li.append(avatar, name, button);
-      return li;
-    }),
-  );
-}
-
-async function importProfile(button) {
-  button.disabled = true;
-  button.parentElement.querySelector('.local-import-error')?.remove();
-  try {
-    const profile = await importLocalProfile(button.dataset.importId);
-    state.profiles.push(profile);
-    setProfileStatus('');
-    renderProfiles();
-    renderLocalImport();
-    toast(`${profile.name} ist jetzt auf allen Geräten verfügbar`, 2500);
-  } catch (error) {
-    button.disabled = false;
-    const message = document.createElement('span');
-    message.className = 'local-import-error';
-    message.setAttribute('role', 'alert');
-    message.textContent =
-      error.code === 'duplicate'
-        ? 'Diesen Namen gibt es online schon.'
-        : error.message || 'Übernehmen fehlgeschlagen.';
-    button.parentElement.append(message);
-  }
-}
-
-function setProfileStatus(message, { error = false, retry = false } = {}) {
-  els.profileStatus.replaceChildren(message);
-  els.profileStatus.classList.toggle('is-error', error);
-  if (retry) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'button button-secondary';
-    button.textContent = 'Erneut versuchen';
-    button.style.marginTop = '0.8rem';
-    button.addEventListener('click', () => loadProfiles());
-    els.profileStatus.append(document.createElement('br'), button);
-  }
-}
-
-// quiet: bereits angezeigte Profile stehen lassen und nur im Hintergrund auffrischen.
-async function loadProfiles({ quiet = false } = {}) {
-  const token = ++state.loadToken;
-  if (!quiet) setProfileStatus('Profile werden geladen …');
-  try {
-    const profiles = await listProfiles();
-    if (token !== state.loadToken) return;
-    state.profiles = profiles;
-    setProfileStatus('');
-    renderProfiles();
-    renderLocalImport();
-  } catch (error) {
-    if (token !== state.loadToken) return;
-    if (quiet) setProfileStatus('Offline – zuletzt geladener Stand.');
-    else setProfileStatus(error.message || 'Profile konnten nicht geladen werden.', { error: true, retry: true });
-  }
-}
-
-function replaceListedProfile(profile) {
-  const index = state.profiles.findIndex((p) => p.id === profile.id);
-  if (index >= 0) state.profiles[index] = profile;
-  else state.profiles.push(profile);
-}
-
-function showProfileScreen() {
-  // Ein laufender Blitz-Durchgang wird zuerst beendet, solange das Profil noch ausgewählt ist.
-  finishBlitz();
+// Zurück zur Startseite; mit switchProfile zeigt sie die Profilliste.
+function goToHub({ switchProfile = false } = {}) {
   dismissBadgePopups();
-  closeAllDialogs();
-  stopCountdown();
-  clearTimeout(state.statsTimer);
-  state.statsTimer = null;
-  state.selectToken += 1;
-  // Den aktuellen Stand in der Liste behalten, falls das Neuladen offline scheitert.
-  if (state.profile) replaceListedProfile(state.profile);
-  state.profile = null;
-  setActiveProfile(null);
-  state.current = [];
-  els.gameScreen.hidden = true;
-  els.profileScreen.hidden = false;
-  document.title = 'Wordle Deutsch';
-  if (state.profiles.length > 0) {
-    setProfileStatus('');
-    renderProfiles();
-  }
-  loadProfiles({ quiet: state.profiles.length > 0 });
+  finishBlitz();
+  window.location.href = switchProfile ? '../?wechseln' : '../';
 }
 
-async function selectProfile(id) {
-  const token = ++state.selectToken;
-  let profile = state.profiles.find((p) => p.id === id);
-  if (!profile) return;
-  if (isCloud) {
-    const card = els.profileList.querySelector(`[data-id="${CSS.escape(id)}"]`);
-    card?.classList.add('is-loading');
-    // Erst eine evtl. laufende Speicherung abwarten, damit Daten und Serverstand zusammenpassen.
-    await flushPending(id).catch(() => null);
-    if (!hasPendingSave(id)) {
-      // Frisch laden, falls auf einem anderen Gerät inzwischen gespielt wurde.
-      let fresh;
-      try {
-        fresh = await fetchProfile(id);
-      } catch {
-        fresh = undefined; // Offline: mit dem zuletzt geladenen Stand weiterspielen.
-      }
-      if (fresh === null && token === state.selectToken) {
-        card?.classList.remove('is-loading');
-        state.profiles = state.profiles.filter((p) => p.id !== id);
-        renderProfiles();
-        toast('Dieses Profil gibt es nicht mehr.', 3000);
-        return;
-      }
-      if (fresh) profile = fresh;
-    }
-    card?.classList.remove('is-loading');
-    // Ein späterer Klick oder der Weg zurück zur Liste hat diese Auswahl überholt.
-    if (token !== state.selectToken) return;
+// Alle Profile für die Rangliste (im Hintergrund geladen, ohne Fehlermeldung).
+async function loadProfileList() {
+  try {
+    state.profiles = await listProfiles();
+  } catch {
+    // Offline: die Rangliste zeigt dann nur das eigene Profil.
   }
-  // Noch nicht hochgeladene Runden dieses Geräts haben Vorrang vor einem älteren Listenstand.
-  const pending = pendingData(id);
-  if (pending) profile.data = pending;
-  replaceListedProfile(profile);
+}
+
+function startWithProfile(profile) {
   state.profile = profile;
-  setActiveProfile(profile);
-  writeSetting(LAST_PROFILE_KEY, id);
   state.today = berlinDayKey();
   ensureGames();
   state.unseenBadges.clear();
@@ -465,7 +180,7 @@ async function selectProfile(id) {
   if (unlockAchievements(profile.data).length > 0) persist();
 
   const dailyDone = profile.data.daily.status !== 'playing';
-  els.profileScreen.hidden = true;
+  els.loadScreen.hidden = true;
   els.gameScreen.hidden = false;
   fillAvatar(els.switchProfile.querySelector('.avatar'), profile.name);
   els.switchProfile.querySelector('.profile-chip-name').textContent = profile.name;
@@ -475,35 +190,30 @@ async function selectProfile(id) {
   if (dailyDone) toast('Tagesrätsel heute schon gespielt ✓', 2200);
 }
 
-async function submitNewProfile(event) {
-  event.preventDefault();
-  const name = cleanName(els.newProfileName.value);
-  if (!name) {
-    els.newProfileError.textContent = 'Bitte einen Namen eingeben.';
+// Lädt das gemerkte Profil; ohne Profil geht es zurück zur Startseite.
+async function loadAndStart() {
+  const id = lastProfileId();
+  if (!id) {
+    goToHub();
     return;
   }
-  if (state.profiles.some((p) => p.name.toLocaleLowerCase('de') === name.toLocaleLowerCase('de'))) {
-    els.newProfileError.textContent = 'Diesen Namen gibt es schon. Wähle ihn in der Liste aus.';
-    return;
-  }
-  const submit = els.newProfileForm.querySelector('[type="submit"]');
-  submit.disabled = true;
-  els.newProfileError.textContent = '';
+  els.loadStatus.textContent = 'Profil wird geladen …';
+  els.loadActions.replaceChildren();
   try {
-    const profile = await createProfile(name, emptyProfileData());
-    state.profiles.push(profile);
-    els.newProfileDialog.close();
-    await selectProfile(profile.id);
-  } catch (error) {
-    if (error.code === 'duplicate') {
-      // Jemand anderes hat den Namen gerade angelegt: Liste auffrischen, damit das Profil sichtbar wird.
-      els.newProfileError.textContent = 'Diesen Namen gibt es schon. Wähle ihn in der Liste aus.';
-      if (isCloud) loadProfiles({ quiet: true });
-    } else {
-      els.newProfileError.textContent = error.message || 'Profil konnte nicht angelegt werden.';
+    const profile = await loadProfile(id);
+    if (!profile) {
+      goToHub({ switchProfile: true });
+      return;
     }
-  } finally {
-    submit.disabled = false;
+    startWithProfile(profile);
+  } catch (error) {
+    els.loadStatus.textContent = error.message || 'Profil konnte nicht geladen werden.';
+    const retry = el('button', 'button button-secondary', 'Erneut versuchen');
+    retry.type = 'button';
+    retry.addEventListener('click', loadAndStart);
+    const back = el('a', 'button button-secondary', 'Zur Startseite');
+    back.href = '../';
+    els.loadActions.append(retry, back);
   }
 }
 
@@ -517,13 +227,8 @@ async function persist() {
   } else if (result.status === 'error') {
     toast(`${result.error?.message || 'Speichern fehlgeschlagen'} Wird erneut versucht.`, 3000);
   } else if (result.status === 'missing') {
-    state.profiles = state.profiles.filter((p) => p.id !== profile.id);
-    if (state.profile === profile && !state.busy) {
-      // Vorher abmelden, damit showProfileScreen das gelöschte Profil nicht wieder in die Liste setzt.
-      state.profile = null;
-      showProfileScreen();
-    }
     toast('Dieses Profil gibt es nicht mehr.', 3000);
+    setTimeout(() => goToHub({ switchProfile: true }), 1800);
   }
 }
 
@@ -653,10 +358,7 @@ function checkNewDay() {
   // Während ein Wort aufgedeckt wird, später erneut prüfen.
   if (today === state.today || state.busy) return;
   state.today = today;
-  if (!state.profile) {
-    if (!els.profileScreen.hidden) renderProfiles();
-    return;
-  }
+  if (!state.profile) return;
   ensureGames();
   if (state.mode === 'daily') {
     // Das Ergebnis von gestern nicht mehr anzeigen oder teilen.
@@ -1547,48 +1249,9 @@ function selectStatsTab(tab) {
   }
 }
 
-// Zeigt neue Abzeichen nacheinander groß an, mit Klang und Konfetti in der Farbe der Stufe.
-// Schließt sich von selbst, per Klick oder mit Enter, Leertaste oder Escape.
+// Zeigt neue Abzeichen groß an und merkt sie als „neu“ für die Abzeichen-Ansicht.
 function showBadgePopups(list) {
-  if (!list.length) return Promise.resolve();
-  return new Promise((resolve) => {
-    const popup = { queue: [...list], timer: null, next: null };
-    popup.next = () => {
-      clearTimeout(popup.timer);
-      const badge = popup.queue.shift();
-      if (!badge) {
-        els.badgePopup.hidden = true;
-        if (state.badgePopup === popup) state.badgePopup = null;
-        resolve();
-        return;
-      }
-      els.badgePopup.dataset.tier = badge.tier;
-      $('badge-popup-icon').textContent = badge.icon;
-      $('badge-popup-title').textContent = badge.title;
-      $('badge-popup-text').textContent = badge.text;
-      $('badge-popup-tier').textContent = TIER_LABEL[badge.tier];
-      els.badgePopup.hidden = false;
-      // Animation für jedes Abzeichen neu starten.
-      for (const node of [els.badgePopup.firstElementChild, $('badge-popup-icon')]) {
-        node.style.animation = 'none';
-        void node.offsetWidth;
-        node.style.animation = '';
-      }
-      state.unseenBadges.add(badge.id);
-      playBadge(badge.tier);
-      burstConfetti({ kind: 'burst', count: badge.tier === 'gold' ? 110 : 70, origin: { x: 0.5, y: 0.4 }, colors: TIER_CONFETTI[badge.tier], power: 12 });
-      popup.timer = setTimeout(popup.next, BADGE_POPUP_MS);
-    };
-    state.badgePopup = popup;
-    popup.next();
-  });
-}
-
-function dismissBadgePopups() {
-  const popup = state.badgePopup;
-  if (!popup) return;
-  popup.queue.length = 0;
-  popup.next();
+  return showBadgePopupsShared(list, { onShow: (badge) => state.unseenBadges.add(badge.id) });
 }
 
 // ---------- Rangliste ----------
@@ -1667,7 +1330,7 @@ function renderRanking() {
     return;
   }
   // Hervorgehoben wird das gerade gespielte Profil, auf der Startseite das zuletzt gespielte.
-  const ownId = state.profile?.id ?? lastProfileId();
+  const ownId = state.profile?.id;
   els.rankingList.replaceChildren(
     ...rows.map((row) => {
       const li = el('li', 'ranking-row');
@@ -1692,11 +1355,9 @@ function openRanking(board = state.rankingBoard) {
   renderRanking();
   openDialog(els.rankingDialog);
   // Im Hintergrund auffrischen, damit auch Ergebnisse von anderen Geräten erscheinen.
-  if (isCloud) {
-    loadProfiles({ quiet: true }).then(() => {
-      if (els.rankingDialog.open) renderRanking();
-    });
-  }
+  loadProfileList().then(() => {
+    if (els.rankingDialog.open) renderRanking();
+  });
 }
 
 // Vom Statistik-Dialog aus: die Tafel, die zum gerade Gezeigten passt.
@@ -1756,49 +1417,16 @@ function openVariantPicker() {
   openDialog(els.variantDialog);
 }
 
-// ---------- Einstellungen ----------
-
-function syncThemeColor() {
-  const theme = document.documentElement.dataset.theme;
-  for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {
-    const dark = theme === 'dark' || (!theme && meta.media.includes('dark'));
-    meta.content = dark ? '#221921' : '#fff8f0';
-  }
-}
-
-function applyTheme(value) {
-  if (value === 'light' || value === 'dark') document.documentElement.dataset.theme = value;
-  else delete document.documentElement.dataset.theme;
-  syncThemeColor();
-}
-
-function openSettings() {
-  els.soundToggle.checked = isSoundEnabled();
-  els.highContrast.checked = document.documentElement.dataset.contrast === 'high';
-  els.themeSelect.value = document.documentElement.dataset.theme || 'system';
-  openDialog(els.settingsDialog);
-}
-
 // ---------- Ereignisse ----------
 
 function bindEvents() {
-  els.profileList.addEventListener('click', (event) => {
-    const card = event.target.closest('.profile-card');
-    if (card) selectProfile(card.dataset.id);
+  const openSettings = initSettings({
+    dialog: els.settingsDialog,
+    themeSelect: els.themeSelect,
+    highContrast: els.highContrast,
+    soundToggle: els.soundToggle,
   });
-  els.localImportList.addEventListener('click', (event) => {
-    const button = event.target.closest('[data-import-id]');
-    if (button && !button.disabled) importProfile(button);
-  });
-
-  els.rankingButton.addEventListener('click', () => openRanking());
-  els.newProfileButton.addEventListener('click', () => {
-    els.newProfileForm.reset();
-    els.newProfileError.textContent = '';
-    openDialog(els.newProfileDialog);
-    els.newProfileName.focus();
-  });
-  els.newProfileForm.addEventListener('submit', submitNewProfile);
+  initBadgePopup();
 
   els.switchProfile.addEventListener('click', async () => {
     if (state.busy || state.switching) return;
@@ -1808,7 +1436,7 @@ function bindEvents() {
     } finally {
       state.switching = false;
     }
-    showProfileScreen();
+    goToHub({ switchProfile: true });
   });
 
   for (const tab of document.querySelectorAll('.mode-tab')) {
@@ -1859,10 +1487,10 @@ function bindEvents() {
 
   document.addEventListener('keydown', (event) => {
     // Solange ein neues Abzeichen gezeigt wird, schließen Enter, Leertaste und Escape die Meldung.
-    if (state.badgePopup) {
+    if (isBadgePopupOpen()) {
       if (event.key === 'Enter' || event.key === ' ' || event.key === 'Escape') {
         event.preventDefault();
-        if (!event.repeat) state.badgePopup.next();
+        if (!event.repeat) advanceBadgePopup();
       }
       return;
     }
@@ -1898,22 +1526,7 @@ function bindEvents() {
     });
   }
 
-  for (const dialog of document.querySelectorAll('dialog')) {
-    // Nur schließen, wenn der Klick auf dem abgedunkelten Hintergrund begonnen hat
-    // (nicht beim Markieren von Text, das außerhalb endet).
-    let pressedOnBackdrop = false;
-    dialog.addEventListener('pointerdown', (event) => {
-      pressedOnBackdrop = event.target === dialog;
-    });
-    dialog.addEventListener('click', (event) => {
-      if (event.target === dialog && pressedOnBackdrop) dialog.close();
-      pressedOnBackdrop = false;
-    });
-    for (const close of dialog.querySelectorAll('[data-close]')) {
-      close.addEventListener('click', () => dialog.close());
-    }
-    dialog.addEventListener('close', () => dialog.querySelector('.toasts')?.replaceChildren());
-  }
+  bindDialogs();
   els.statsDialog.addEventListener('close', stopCountdown);
 
   $('share-button').addEventListener('click', share);
@@ -1927,34 +1540,13 @@ function bindEvents() {
       renderRanking();
     });
   }
-  els.badgePopup.addEventListener('click', () => state.badgePopup?.next());
-
-  els.soundToggle.addEventListener('change', () => {
-    setSoundEnabled(els.soundToggle.checked);
-    // Kurzer Klick als Probe, damit man sofort hört, ob die Töne an sind.
-    if (els.soundToggle.checked) playTap();
-  });
-  els.highContrast.addEventListener('change', () => {
-    if (els.highContrast.checked) document.documentElement.dataset.contrast = 'high';
-    else delete document.documentElement.dataset.contrast;
-    writeSetting(CONTRAST_KEY, els.highContrast.checked ? '1' : null);
-  });
-  els.themeSelect.addEventListener('change', () => {
-    const value = els.themeSelect.value;
-    applyTheme(value);
-    writeSetting(THEME_KEY, value === 'system' ? null : value);
-  });
-
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible') return;
     checkNewDay();
     if (state.profile) refreshFromCloud();
-    else if (isCloud && !els.profileScreen.hidden) loadProfiles({ quiet: true });
   });
   window.addEventListener('online', () => {
-    flushAllPending().then(() => {
-      if (!state.profile && !els.profileScreen.hidden) loadProfiles({ quiet: true });
-    });
+    flushAllPending();
   });
   setInterval(() => {
     checkNewDay();
@@ -1969,9 +1561,7 @@ function bindEvents() {
 function init() {
   buildKeyboard();
   bindEvents();
-  syncThemeColor();
-  els.localHint.hidden = isCloud;
-  showProfileScreen();
+  loadAndStart();
 }
 
 init();

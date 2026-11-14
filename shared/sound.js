@@ -314,3 +314,24 @@ export function playBadge(tier = 'bronze') {
   for (const freq of [784, 988, 1175]) pad(ctx, chord, { freq, at: 0.3, duration: 2, volume: 0.06, cutoff: 3000 });
   sparkle(ctx, { at: 0.36, count: BADGE_SPARKLES[tier] || BADGE_SPARKLES.bronze });
 }
+
+// Sudoku: eine Ziffer richtig eintragen. Weicher Marimba-Ton, höher je größer die Ziffer.
+const PLACE_NOTES = [523, 587, 659, 698, 784, 880, 988, 1047, 1175];
+
+export function playPlace(digit = 5) {
+  const ctx = audio();
+  if (!ctx) return;
+  const out = output(ctx, { pan: ((digit - 5) / 4) * 0.25, space: 0.15 });
+  click(ctx, out, { freq: 1800, q: 0.7, duration: 0.015, volume: 0.06 });
+  strike(ctx, out, { freq: PLACE_NOTES[digit - 1] || 659, duration: 0.5, volume: 0.28 });
+}
+
+// Sudoku: Zeile, Spalte oder Block ist fertig. Kleine aufsteigende Glockenfolge.
+export function playUnitDone() {
+  const ctx = audio();
+  if (!ctx) return;
+  [784, 988, 1175].forEach((freq, i) => {
+    const out = output(ctx, { pan: (i - 1) * 0.2, space: 0.35 });
+    strike(ctx, out, { freq, at: 0.08 + i * 0.07, duration: 0.8, volume: 0.16, partials: BELL });
+  });
+}

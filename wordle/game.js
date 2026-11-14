@@ -1,10 +1,9 @@
 // Reine Spiellogik ohne DOM-Zugriff, damit sie auch in Node getestet werden kann.
 
+import { dayNumber, shiftDayKey } from '../shared/day.js';
+
 export const WORD_LENGTH = 5;
 export const MAX_GUESSES = 6;
-
-const EPOCH_UTC = Date.UTC(2026, 0, 1);
-const DAY_MS = 86_400_000;
 
 export function letters(word) {
   return Array.from(word);
@@ -57,32 +56,7 @@ export function keyboardStates(guesses, answer) {
   return keyboardStatesFromRows(guesses, guesses.map((guess) => evaluateGuess(guess, answer)));
 }
 
-// Kalendertag in Deutschland als "JJJJ-MM-TT", damit alle um Mitternacht (MEZ/MESZ) ein neues Wort bekommen.
-export function berlinDayKey(date = new Date()) {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Europe/Berlin',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(date);
-}
-
-function dayKeyToUtc(dayKey) {
-  const [y, m, d] = dayKey.split('-').map(Number);
-  return Date.UTC(y, m - 1, d);
-}
-
-export function dayNumber(dayKey) {
-  return Math.round((dayKeyToUtc(dayKey) - EPOCH_UTC) / DAY_MS);
-}
-
-export function shiftDayKey(dayKey, days) {
-  return new Date(dayKeyToUtc(dayKey) + days * DAY_MS).toISOString().slice(0, 10);
-}
-
-export function puzzleNumber(dayKey) {
-  return dayNumber(dayKey) + 1;
-}
+export { berlinDayKey, dayNumber, shiftDayKey, puzzleNumber } from '../shared/day.js';
 
 // Die Lösungsliste steht bereits in Tagesreihenfolge (siehe js/words.js).
 export function dailyAnswer(dayKey, solutions) {
